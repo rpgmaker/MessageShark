@@ -89,8 +89,6 @@ namespace MessageShark {
         }
 
         public static object CreateInstanceForConcreteTypeTag(byte[] buffer, Type type, ref int startIndex, int tag) {
-            if (tag <= 15) startIndex++;
-            else startIndex += 2;
             return CreateInstance(SetBaseToConcreteType(buffer, type, ref startIndex));
         }
 
