@@ -1,5 +1,7 @@
 MessageShark is alternative binary serializer to protobuf-net and it has comparable speed and size.
 
+MessageShark is designed to work on only properties at this moment. It would be updated to work on fields too later
+
 Refer to samples folder for comparison between protobuf-net and MessageShark
 
 Refer to wiki for how to customize
