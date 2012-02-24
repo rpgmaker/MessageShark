@@ -49,6 +49,8 @@ namespace MessageShark.Samples.ProtoBufVsMessageShark {
                 var pData = Proto.Deserialize<SimpleObject>(pBuffer);
                 return pBuffer.Length;
             });
+
+            Console.ReadLine();
         }
 
         static void Test(string name, Func<int> func) {
