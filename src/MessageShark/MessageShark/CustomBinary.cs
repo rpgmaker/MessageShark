@@ -88,15 +88,11 @@ namespace MessageShark {
             else startIndex += 2;
         }
 
-        public static object CreateInstanceForConcreteTypeTag(byte[] buffer, Type type, ref int startIndex, int tag) {
-            return CreateInstance(SetBaseToConcreteType(buffer, type, ref startIndex));
-        }
-
         public static object CreateInstanceForConcreteType(byte[] buffer, Type type, ref int startIndex) {
             return CreateInstance(TypeIDMapping[type][buffer[startIndex++]]);
         }
 
-        static Type SetBaseToConcreteType(byte[] buffer, Type type, ref int startIndex) {
+        public static Type ConvertBaseToConcreteType(byte[] buffer, Type type, ref int startIndex) {
             if (TypeMapping.ContainsKey(type))
                 return TypeIDMapping[type][buffer[startIndex++]];
             return type;

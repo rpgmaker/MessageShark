@@ -218,22 +218,64 @@ namespace MessageShark
             var isCollection = type.IsCollectionType();
             var isClass = !isCollection && type.IsComplexType();
             if (isClass) {
-                var method = GenerateDeserializerClass(typeBuilder, type);
-                if (TypeMapping.ContainsKey(type)) {
+                MethodBuilder method;
+                var hasTypeMapping = TypeMapping.ContainsKey(type);
+                
+                if (hasTypeMapping) {
+                    var index = 0;
+                    var typeMapping = TypeMapping[type];
+                    var count = typeMapping.Count;
+                    var types = typeMapping.Select(kv => kv.Key);
+                    var needBranchLabel = count > 1;
+                    var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
+                    var valueTypeLocal = il.DeclareLocal(TypeType);
+                    
                     il.Emit(OpCodes.Ldarg_2);
                     il.Emit(OpCodes.Ldtoken, type);
                     il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                     il.Emit(OpCodes.Ldarg_3);
-                    il.Emit(OpCodes.Call, CreateInstanceForConcreteTypeMethod);
-                    il.Emit(OpCodes.Castclass, type);
-                } else
+                    il.Emit(OpCodes.Call, ConvertBaseToConcreteTypeMethod);
+
+                    il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
+
+                    foreach (var mapType in types) {
+                        index++;
+                        var isLastIndex = index == count;
+                        var isLastCondition = isLastIndex && needBranchLabel;
+                        var conditionLabel = !isLastCondition ? il.DefineLabel() : DefaultLabel;
+                        var currentConditionLabel = isLastCondition ? branchLabel : conditionLabel;
+                        il.Emit(OpCodes.Ldloc, valueTypeLocal.LocalIndex);
+                        il.Emit(OpCodes.Ldtoken, mapType);
+                        il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
+                        il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
+                        il.Emit(OpCodes.Brfalse, currentConditionLabel);
+
+                        method = GenerateDeserializerClass(typeBuilder, mapType);
+                        il.Emit(OpCodes.Newobj, mapType.GetConstructor(Type.EmptyTypes));
+                        il.Emit(OpCodes.Stloc, itemLocalIndex);
+                        il.Emit(OpCodes.Ldarg_0);
+                        il.Emit(OpCodes.Ldloc, itemLocalIndex);
+                        if (mapType.IsClass)
+                            il.Emit(OpCodes.Castclass, mapType);
+                        else il.Emit(OpCodes.Unbox_Any, mapType);
+                        il.Emit(OpCodes.Ldarg_2);
+                        il.Emit(OpCodes.Ldarg_3);
+                        il.Emit(OpCodes.Call, method);
+
+                        if (!isLastIndex)
+                            il.Emit(OpCodes.Br, branchLabel);
+                        il.MarkLabel(currentConditionLabel);
+                    }
+                } else {
+                    method = GenerateDeserializerClass(typeBuilder, type);
                     il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
-                il.Emit(OpCodes.Stloc, itemLocalIndex);
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Ldloc, itemLocalIndex);
-                il.Emit(OpCodes.Ldarg_2);
-                il.Emit(OpCodes.Ldarg_3);
-                il.Emit(OpCodes.Call, method);
+                    il.Emit(OpCodes.Stloc, itemLocalIndex);
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Ldloc, itemLocalIndex);
+                    il.Emit(OpCodes.Ldarg_2);
+                    il.Emit(OpCodes.Ldarg_3);
+                    il.Emit(OpCodes.Call, method);
+                }
             } else if (isCollection) {
                 WriteDeserializerClass(typeBuilder, il, type, tag, null, itemLocalIndex: itemLocalIndex);
             } else {
@@ -257,24 +299,66 @@ namespace MessageShark
         }
 
         static void WriteDeserializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod) {
-            var method = GenerateDeserializerClass(typeBuilder, type);
+            MethodBuilder method;
             var local = il.DeclareLocal(type);
-            if (TypeMapping.ContainsKey(type)) {
+            var hasTypeMapping = TypeMapping.ContainsKey(type);
+            
+            if (hasTypeMapping) {
+                var index = 0;
+                var typeMapping = TypeMapping[type];
+                var count = typeMapping.Count;
+                var types = typeMapping.Select(kv => kv.Key);
+                var needBranchLabel = count > 1;
+                var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
+                var valueTypeLocal = il.DeclareLocal(TypeType);
+
                 il.Emit(OpCodes.Ldarg_2);
                 il.Emit(OpCodes.Ldtoken, type);
                 il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                 il.Emit(OpCodes.Ldarg_3);
-                il.Emit(OpCodes.Ldc_I4, tag);
-                il.Emit(OpCodes.Call, CreateInstanceForConcreteTypeTagMethod);
-                il.Emit(OpCodes.Castclass, type);
-            } else
+                il.Emit(OpCodes.Call, ConvertBaseToConcreteTypeMethod);
+
+                il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
+
+                foreach (var mapType in types) {
+                    index++;
+                    var isLastIndex = index == count;
+                    var isLastCondition = isLastIndex && needBranchLabel;
+                    var conditionLabel = !isLastCondition ? il.DefineLabel() : DefaultLabel;
+                    var currentConditionLabel = isLastCondition ? branchLabel : conditionLabel;
+                    il.Emit(OpCodes.Ldloc, valueTypeLocal.LocalIndex);
+                    il.Emit(OpCodes.Ldtoken, mapType);
+                    il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
+                    il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
+                    il.Emit(OpCodes.Brfalse, currentConditionLabel);
+
+                    method = GenerateDeserializerClass(typeBuilder, mapType);
+                    il.Emit(OpCodes.Newobj, mapType.GetConstructor(Type.EmptyTypes));
+                    il.Emit(OpCodes.Stloc, local.LocalIndex);
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Ldloc, local.LocalIndex);
+                    if (mapType.IsClass)
+                        il.Emit(OpCodes.Castclass, mapType);
+                    else il.Emit(OpCodes.Unbox_Any, mapType);
+                    il.Emit(OpCodes.Ldarg_2);
+                    il.Emit(OpCodes.Ldarg_3);
+                    il.Emit(OpCodes.Call, method);
+
+                    if (!isLastIndex)
+                        il.Emit(OpCodes.Br, branchLabel);
+                    il.MarkLabel(currentConditionLabel);
+                }
+            } else {
+                method = GenerateDeserializerClass(typeBuilder, type);
                 il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
-            il.Emit(OpCodes.Stloc, local.LocalIndex);
-            il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Ldloc, local.LocalIndex);
-            il.Emit(OpCodes.Ldarg_2);
-            il.Emit(OpCodes.Ldarg_3);
-            il.Emit(OpCodes.Call, method);
+                il.Emit(OpCodes.Stloc, local.LocalIndex);
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Ldloc, local.LocalIndex);
+                il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Ldarg_3);
+                il.Emit(OpCodes.Call, method);
+            }
+
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(OpCodes.Ldloc, local.LocalIndex);
             il.Emit(OpCodes.Callvirt, setMethod);

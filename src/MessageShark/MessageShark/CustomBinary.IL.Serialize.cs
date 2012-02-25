@@ -154,7 +154,7 @@ namespace MessageShark {
             il.Emit(OpCodes.Call, PrimitiveWriterMethods[type]);
         }
 
-        static MethodBuilder GenerateSerializerClass(TypeBuilder typeBuilder, Type objType, bool isEntryPoint = false) {
+        static MethodBuilder GenerateSerializerClass(TypeBuilder typeBuilder, Type objType, bool isEntryPoint = false, Type baseType = null) {
             MethodBuilder method;
             if (WriterMethodBuilders.TryGetValue(objType, out method)) return method;
             var methodName = String.Intern("Write") + objType.Name;
@@ -163,14 +163,15 @@ namespace MessageShark {
 
             var methodIL = method.GetILGenerator();
 
-            WriteSerializerClass(typeBuilder, methodIL, objType, tag: 0, valueMethod: null, callerType: objType, isEntryPoint: isEntryPoint);
+            WriteSerializerClass(typeBuilder, methodIL, objType, tag: 0, valueMethod: null, callerType: objType, isEntryPoint: isEntryPoint,
+                baseType: baseType);
             
             methodIL.Emit(OpCodes.Ret);
             return (WriterMethodBuilders[objType] = method);
         }
 
         static void WriteSerializerClass(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo valueMethod,
-            Type callerType = null, bool isEntryPoint = false) {
+            Type callerType = null, bool isEntryPoint = false, Type baseType = null) {
             var isDict = type.IsDictionaryType();
             var isList = type.IsListType();
             var isClass = !isDict && !isList;
@@ -181,7 +182,7 @@ namespace MessageShark {
             il.Emit(OpCodes.Brfalse, isDefaultLabel);
             
             if (type.IsClassType()) {
-                WriteSerializerProperties(typeBuilder, il, type, callerType, isEntryPoint);
+                WriteSerializerProperties(typeBuilder, il, type, callerType, isEntryPoint, baseType: baseType);
             } else {
                 il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldarg_2);
@@ -201,7 +202,54 @@ namespace MessageShark {
 
         static void WriteSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type,
             OpCode valueOpCode, int valueLocalIndex, int tag, MethodInfo valueMethod, bool needClassHeader) {
-            var method = GenerateSerializerClass(typeBuilder, type);
+            MethodBuilder method;
+            if (TypeMapping.ContainsKey(type)) {
+                var index = 0;
+                var typeMapping = TypeMapping[type];
+                var count = typeMapping.Count;
+                var types = typeMapping.Select(kv => kv.Key);
+                var needBranchLabel = count > 1;
+                var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
+                var valueLocal = il.DeclareLocal(type);
+                var valueTypeLocal = il.DeclareLocal(TypeType);
+                il.Emit(valueOpCode, valueLocalIndex);
+                if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+                il.Emit(OpCodes.Stloc, valueLocal.LocalIndex);
+                il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
+                il.Emit(OpCodes.Callvirt, GetTypeMethod);
+                il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
+
+                foreach (var mapType in types) {
+                    index++;
+                    var isLastIndex = index == count;
+                    var isLastCondition = isLastIndex && needBranchLabel;
+                    var conditionLabel = !isLastCondition ? il.DefineLabel() : DefaultLabel;
+                    var currentConditionLabel = isLastCondition ? branchLabel : conditionLabel;
+                    il.Emit(OpCodes.Ldloc, valueTypeLocal.LocalIndex);
+                    il.Emit(OpCodes.Ldtoken, mapType);
+                    il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
+                    il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
+                    il.Emit(OpCodes.Brfalse, currentConditionLabel);
+
+                    method = GenerateSerializerClass(typeBuilder, mapType, baseType: type);
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
+                    if (mapType.IsClass)
+                        il.Emit(OpCodes.Castclass, mapType);
+                    else il.Emit(OpCodes.Unbox_Any, mapType);
+                    il.Emit(OpCodes.Ldc_I4, tag);
+                    il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
+                    il.Emit(OpCodes.Call, method);
+
+                    if (!isLastIndex)
+                        il.Emit(OpCodes.Br, branchLabel);
+                    il.MarkLabel(currentConditionLabel);
+                }
+                return;
+            }
+
+            method = GenerateSerializerClass(typeBuilder, type);
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(valueOpCode, valueLocalIndex);
@@ -211,9 +259,10 @@ namespace MessageShark {
             il.Emit(OpCodes.Call, method);
         }
 
-        static void WriteSerializerProperties(TypeBuilder typeBuilder, ILGenerator il, Type type, 
-            Type callerType, bool isEntryPoint, bool needClassHeader = true) {
+        static void WriteSerializerProperties(TypeBuilder typeBuilder, ILGenerator il, Type type,
+            Type callerType, bool isEntryPoint, bool needClassHeader = true, Type baseType = null) {
 
+            baseType = baseType ?? type;
             var props = GetTypeProperties(type);
             var tag = 1;
 
@@ -229,9 +278,9 @@ namespace MessageShark {
                 il.MarkLabel(needClassHeaderLabel);
             }
 
-            if (TypeIDMapping.ContainsKey(type)) {
+            if (TypeIDMapping.ContainsKey(baseType)) {
                 il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Ldtoken, type);
+                il.Emit(OpCodes.Ldtoken, baseType);
                 il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                 il.Emit(OpCodes.Ldarg_2);
                 il.Emit(OpCodes.Callvirt, GetTypeMethod);
@@ -246,14 +295,7 @@ namespace MessageShark {
                     if (propType.IsCollectionType())
                         WriteSerializerClass(typeBuilder, il, propType, tag, getMethod, callerType: callerType);
                     else {
-                        var method = GenerateSerializerClass(typeBuilder, propType);
-                        il.Emit(OpCodes.Ldarg_0);
-                        il.Emit(OpCodes.Ldarg_1);
-                        il.Emit(OpCodes.Ldarg_2);
-                        il.Emit(OpCodes.Callvirt, getMethod);
-                        il.Emit(OpCodes.Ldc_I4, tag);
-                        il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
-                        il.Emit(OpCodes.Call, method);
+                        WriteSerializerCallClassMethod(typeBuilder, il, propType, getMethod, tag, needClassHeader);
                     }
                 } else {
                     var isTypeEnum = propType.IsEnum;
@@ -268,6 +310,64 @@ namespace MessageShark {
                 }
                 tag++;
             }
+        }
+
+        static void WriteSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod, int tag,
+            bool needClassHeader) {
+            MethodBuilder method;
+            if (TypeMapping.ContainsKey(type)) {
+                var index = 0;
+                var typeMapping = TypeMapping[type];
+                var count = typeMapping.Count;
+                var types = typeMapping.Select(kv => kv.Key);
+                var needBranchLabel = count > 1;
+                var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
+                var valueLocal = il.DeclareLocal(type);
+                var valueTypeLocal = il.DeclareLocal(TypeType);
+                il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Callvirt, valueMethod);
+                il.Emit(OpCodes.Stloc, valueLocal.LocalIndex);
+                il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
+                il.Emit(OpCodes.Callvirt, GetTypeMethod);
+                il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
+
+                foreach (var mapType in types) {
+                    index++;
+                    var isLastIndex = index == count;
+                    var isLastCondition = isLastIndex && needBranchLabel;
+                    var conditionLabel = !isLastCondition ? il.DefineLabel() : DefaultLabel;
+                    var currentConditionLabel = isLastCondition ? branchLabel : conditionLabel;
+                    il.Emit(OpCodes.Ldloc, valueTypeLocal.LocalIndex);
+                    il.Emit(OpCodes.Ldtoken, mapType);
+                    il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
+                    il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
+                    il.Emit(OpCodes.Brfalse, currentConditionLabel);
+
+                    method = GenerateSerializerClass(typeBuilder, mapType, baseType: type);
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
+                    if (mapType.IsClass)
+                        il.Emit(OpCodes.Castclass, mapType);
+                    else il.Emit(OpCodes.Unbox_Any, mapType);
+                    il.Emit(OpCodes.Ldc_I4, tag);
+                    il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
+                    il.Emit(OpCodes.Call, method);
+
+                    if (!isLastIndex)
+                        il.Emit(OpCodes.Br, branchLabel);
+                    il.MarkLabel(currentConditionLabel);
+                }
+                return;
+            }
+            method = GenerateSerializerClass(typeBuilder, type);
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldarg_1);
+            il.Emit(OpCodes.Ldarg_2);
+            il.Emit(OpCodes.Callvirt, valueMethod);
+            il.Emit(OpCodes.Ldc_I4, tag);
+            il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
+            il.Emit(OpCodes.Call, method);
         }
     }
 }

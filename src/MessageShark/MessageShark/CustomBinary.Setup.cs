@@ -55,6 +55,9 @@ namespace MessageShark
             BufferStreamType.GetConstructor(Type.EmptyTypes);
 
         static volatile bool IsBuild = false;
+        static readonly Label DefaultLabel = default(Label);
+        static readonly Type ObjectType = typeof(object);
+        static readonly Type TypeType = typeof(Type);
         static readonly Type EnumType = typeof(Enum);
         static readonly Type CustomBinaryType = typeof(CustomBinary);
 		static readonly Type ByteArrayType = typeof(byte[]);
@@ -72,15 +75,17 @@ namespace MessageShark
         static MethodInfo WriteTypeIDForMethod =
             CustomBinaryType.GetMethod("WriteTypeIDFor", MethodBinding);
         static MethodInfo GetTypeMethod =
-            typeof(object).GetMethod("GetType");
+            ObjectType.GetMethod("GetType");
         static MethodInfo GetTypeFromHandleMethod =
-            typeof(Type).GetMethod("GetTypeFromHandle", MethodBinding);
+            TypeType.GetMethod("GetTypeFromHandle", MethodBinding);
+        static MethodInfo GetTypeOpEqualityMethod =
+            TypeType.GetMethod("op_Equality", MethodBinding);
         static MethodInfo CreateInstanceForConcreteTypeMethod =
             CustomBinaryType.GetMethod("CreateInstanceForConcreteType", MethodBinding);
         static MethodInfo IsNextTagForPropertyTagMethod =
             CustomBinaryType.GetMethod("IsNextTagForPropertyTag", MethodBinding);
-        static MethodInfo CreateInstanceForConcreteTypeTagMethod =
-            CustomBinaryType.GetMethod("CreateInstanceForConcreteTypeTag", MethodBinding);
+        static MethodInfo ConvertBaseToConcreteTypeMethod =
+            CustomBinaryType.GetMethod("ConvertBaseToConcreteType", MethodBinding);
         static MethodInfo ReadNextBytesMethod =
             CustomBinaryType.GetMethod("ReadNextBytes", MethodBinding);
         static MethodInfo GetCollectionLengthMethod =
@@ -92,7 +97,6 @@ namespace MessageShark
         static readonly byte[] TypeIDByteArray = new byte[1];
         static readonly byte[] BooleanBytes = new byte[] { 1 };
         static readonly Type[] CtorCapacityTypes = new Type[] { typeof(int) };
-        static readonly Type ObjectType = typeof(object);
         static readonly Type ICollectionType = typeof(ICollection);
 		static readonly Type DictType = typeof(IDictionary);
 		static readonly Type ListType = typeof(IList);
