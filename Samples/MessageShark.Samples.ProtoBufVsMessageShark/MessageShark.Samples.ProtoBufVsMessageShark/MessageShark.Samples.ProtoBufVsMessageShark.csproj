@@ -35,7 +35,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="MessageShark, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL" />
+    <Reference Include="MessageShark, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\..\lib\MessageShark.dll</HintPath>
+    </Reference>
     <Reference Include="protobuf-net, Version=2.0.0.480, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -55,7 +57,6 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <Content Include="lib\MessageShark.dll" />
     <Content Include="lib\protobuf-net.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
