@@ -371,6 +371,9 @@ namespace MessageShark
             foreach (var prop in props) {
                 var flagLabel = il.DefineLabel();
                 var propType = prop.PropertyType;
+
+                if (!prop.CanWrite) continue;
+
                 var setMethod = prop.GetSetMethod();
 
                 il.Emit(OpCodes.Ldc_I4, tag);

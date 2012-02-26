@@ -289,6 +289,9 @@ namespace MessageShark {
 
             foreach (var prop in props) {
                 var propType = prop.PropertyType;
+
+                if (!prop.CanRead || !prop.CanWrite) continue;
+
                 var getMethod = prop.GetGetMethod();
 
                 if (propType.IsComplexType()) {
