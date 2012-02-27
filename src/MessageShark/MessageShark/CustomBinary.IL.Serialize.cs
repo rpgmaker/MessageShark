@@ -48,7 +48,9 @@ namespace MessageShark {
         }
 
         static void WriteSerializerList(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod) {
-            var listType = type.GetGenericArguments()[0];
+            var arguments = type.GetGenericArguments();
+            var listType = arguments.Length > 0 ? arguments[0] : ObjectType;
+            var genericListType = GenericListType.MakeGenericType(listType);
             var enumeratorType = GenericListEnumerator.MakeGenericType(listType);
             var enumeratorLocal = il.DeclareLocal(enumeratorType);
             var entryLocal = il.DeclareLocal(listType);
@@ -57,9 +59,8 @@ namespace MessageShark {
             var endEnumeratorLabel = il.DefineLabel();
             il.Emit(OpCodes.Ldarg_2);
             if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
-            il.Emit(OpCodes.Callvirt,
-                GenericListType.MakeGenericType(listType)
-                .GetMethod("GetEnumerator"));
+            if (type.Name == "IList`1") il.Emit(OpCodes.Castclass, genericListType);
+            il.Emit(OpCodes.Callvirt, genericListType.GetMethod("GetEnumerator"));
             il.Emit(OpCodes.Stloc_S, enumeratorLocal.LocalIndex);
             il.BeginExceptionBlock();
             il.Emit(OpCodes.Br, startEnumeratorLabel);
@@ -146,7 +147,9 @@ namespace MessageShark {
             var isTypeEnum = type.IsEnum;
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(valueOpCode, valueLocalIndex);
-            if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+            if (valueMethod != null) {
+                il.Emit(OpCodes.Call, valueMethod);//Virt
+            }
             if (isTypeEnum) il.Emit(OpCodes.Box, type);
             il.Emit(OpCodes.Ldc_I4, tag);
             if (isTypeEnum) type = EnumType;
@@ -159,7 +162,8 @@ namespace MessageShark {
             if (WriterMethodBuilders.TryGetValue(objType, out method)) return method;
             var methodName = String.Intern("Write") + objType.Name;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
-                typeof(void), new[] { typeof(CustomBuffer),  objType, typeof(int), typeof(bool) });
+                typeof(void), new[] { typeof(CustomBuffer), objType,
+                    typeof(int), typeof(bool) });
 
             var methodIL = method.GetILGenerator();
 
@@ -175,12 +179,14 @@ namespace MessageShark {
             var isDict = type.IsDictionaryType();
             var isList = type.IsListType();
             var isClass = !isDict && !isList;
-            var isDefaultLabel = il.DefineLabel();
-            
-            il.Emit(OpCodes.Ldarg_2);
-            if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
-            il.Emit(OpCodes.Brfalse, isDefaultLabel);
-            
+            var needCondition = !type.IsValueType;
+            var isDefaultLabel = needCondition ? il.DefineLabel() : DefaultLabel;
+
+            if (needCondition) {
+                il.Emit(OpCodes.Ldarg_2);
+                if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+                il.Emit(OpCodes.Brfalse, isDefaultLabel);
+            }
             if (type.IsClassType()) {
                 WriteSerializerProperties(typeBuilder, il, type, callerType, isEntryPoint, baseType: baseType);
             } else {
@@ -197,7 +203,8 @@ namespace MessageShark {
                     else WriteSerializerList(typeBuilder, il, type, valueMethod);
                 }
             }
-            il.MarkLabel(isDefaultLabel);
+            if (needCondition)
+                il.MarkLabel(isDefaultLabel);
         }
 
         static void WriteSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type,
@@ -253,7 +260,7 @@ namespace MessageShark {
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(valueOpCode, valueLocalIndex);
-            if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+            if (valueMethod != null) il.Emit(OpCodes.Call, valueMethod);
             il.Emit(OpCodes.Ldc_I4, tag);
             il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
             il.Emit(OpCodes.Call, method);
@@ -265,6 +272,7 @@ namespace MessageShark {
             baseType = baseType ?? type;
             var props = GetTypeProperties(type);
             var tag = 1;
+            var isTypeClass = type.IsClass;
 
             if (!isEntryPoint) {
                 var needClassHeaderLabel = il.DefineLabel();
@@ -298,13 +306,15 @@ namespace MessageShark {
                     if (propType.IsCollectionType())
                         WriteSerializerClass(typeBuilder, il, propType, tag, getMethod, callerType: callerType);
                     else {
-                        WriteSerializerCallClassMethod(typeBuilder, il, propType, getMethod, tag, needClassHeader);
+                        WriteSerializerCallClassMethod(typeBuilder, il, propType, getMethod, tag, needClassHeader, callerType);
                     }
                 } else {
                     var isTypeEnum = propType.IsEnum;
                     il.Emit(OpCodes.Ldarg_1);
-                    il.Emit(OpCodes.Ldarg_2);
-                    il.Emit(OpCodes.Callvirt, getMethod);
+                    if (isTypeClass)
+                        il.Emit(OpCodes.Ldarg_2);
+                    else il.Emit(OpCodes.Ldarga, 2);
+                    il.Emit(isTypeClass ? OpCodes.Callvirt : OpCodes.Call, getMethod);
                     if (isTypeEnum) il.Emit(OpCodes.Box, propType);
                     il.Emit(OpCodes.Ldc_I4, tag);
                     if (isTypeEnum) propType = EnumType;
@@ -316,8 +326,9 @@ namespace MessageShark {
         }
 
         static void WriteSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod, int tag,
-            bool needClassHeader) {
+            bool needClassHeader, Type callerType) {
             MethodBuilder method;
+            var isTypeClass = callerType.IsClass;
             if (TypeMapping.ContainsKey(type)) {
                 var index = 0;
                 var typeMapping = TypeMapping[type];
@@ -327,8 +338,11 @@ namespace MessageShark {
                 var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
                 var valueLocal = il.DeclareLocal(type);
                 var valueTypeLocal = il.DeclareLocal(TypeType);
-                il.Emit(OpCodes.Ldarg_2);
-                il.Emit(OpCodes.Callvirt, valueMethod);
+
+                if (isTypeClass)
+                    il.Emit(OpCodes.Ldarg_2);
+                else il.Emit(OpCodes.Ldarga, 2);
+                il.Emit(OpCodes.Call, valueMethod);
                 il.Emit(OpCodes.Stloc, valueLocal.LocalIndex);
                 il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
                 il.Emit(OpCodes.Callvirt, GetTypeMethod);
@@ -366,8 +380,10 @@ namespace MessageShark {
             method = GenerateSerializerClass(typeBuilder, type);
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldarg_1);
-            il.Emit(OpCodes.Ldarg_2);
-            il.Emit(OpCodes.Callvirt, valueMethod);
+            if (isTypeClass)
+                il.Emit(OpCodes.Ldarg_2);
+            else il.Emit(OpCodes.Ldarga, 2);
+            il.Emit(OpCodes.Call, valueMethod);//Virt
             il.Emit(OpCodes.Ldc_I4, tag);
             il.Emit(OpCodes.Ldc_I4, needClassHeader ? 1 : 0);
             il.Emit(OpCodes.Call, method);

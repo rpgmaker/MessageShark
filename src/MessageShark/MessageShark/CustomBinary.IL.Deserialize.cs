@@ -14,7 +14,7 @@ namespace MessageShark
             if (ReaderMethodBuilders.TryGetValue(objType, out method)) return method;
             var methodName = String.Intern("Read") + objType.Name;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
-                typeof(void), new[] { objType, ByteArrayType, typeof(int).MakeByRefType() });
+                typeof(void), new[] { objType.IsValueType ? objType.MakeByRefType() : objType, ByteArrayType, typeof(int).MakeByRefType() });
 
             var methodIL = method.GetILGenerator();
 
@@ -268,10 +268,18 @@ namespace MessageShark
                     }
                 } else {
                     method = GenerateDeserializerClass(typeBuilder, type);
-                    il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
-                    il.Emit(OpCodes.Stloc, itemLocalIndex);
+                    var isTypeClass = type.IsClass;
+                    if (isTypeClass) {
+                        il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
+                        il.Emit(OpCodes.Stloc, itemLocalIndex);
+                    } else {
+                        il.Emit(OpCodes.Ldloca, itemLocalIndex);
+                        il.Emit(OpCodes.Initobj, type);
+                    }
                     il.Emit(OpCodes.Ldarg_0);
-                    il.Emit(OpCodes.Ldloc, itemLocalIndex);
+                    if (isTypeClass)
+                        il.Emit(OpCodes.Ldloc, itemLocalIndex);
+                    else il.Emit(OpCodes.Ldloca, itemLocalIndex);
                     il.Emit(OpCodes.Ldarg_2);
                     il.Emit(OpCodes.Ldarg_3);
                     il.Emit(OpCodes.Call, method);
@@ -350,10 +358,18 @@ namespace MessageShark
                 }
             } else {
                 method = GenerateDeserializerClass(typeBuilder, type);
-                il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
-                il.Emit(OpCodes.Stloc, local.LocalIndex);
+                var isTypeClass = type.IsClass;
+                if (isTypeClass) {
+                    il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
+                    il.Emit(OpCodes.Stloc, local.LocalIndex);
+                } else {
+                    il.Emit(OpCodes.Ldloca, local.LocalIndex);
+                    il.Emit(OpCodes.Initobj, type);
+                }
                 il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Ldloc, local.LocalIndex);
+                if (isTypeClass)
+                    il.Emit(OpCodes.Ldloc, local.LocalIndex);
+                else il.Emit(OpCodes.Ldloca, local.LocalIndex);
                 il.Emit(OpCodes.Ldarg_2);
                 il.Emit(OpCodes.Ldarg_3);
                 il.Emit(OpCodes.Call, method);
@@ -361,12 +377,13 @@ namespace MessageShark
 
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(OpCodes.Ldloc, local.LocalIndex);
-            il.Emit(OpCodes.Callvirt, setMethod);
+            il.Emit(OpCodes.Call, setMethod);
         }
 
         static void WriteDeserializerProperties(TypeBuilder typeBuilder, ILGenerator il, Type type, Type callerType) {
             var props = GetTypeProperties(type);
             var tag = 1;
+            var isTypeClass = type.IsClass;
 
             foreach (var prop in props) {
                 var flagLabel = il.DefineLabel();
@@ -409,7 +426,7 @@ namespace MessageShark
                     else
                         il.Emit(OpCodes.Call, PrimitiveReaderMethods[propType]);
                     if (needTypeForReader) il.Emit(OpCodes.Unbox_Any, propType);
-                    il.Emit(OpCodes.Callvirt, setMethod);
+                    il.Emit(isTypeClass ? OpCodes.Callvirt : OpCodes.Call, setMethod);
                 }
                 il.MarkLabel(flagLabel);
                 tag++;

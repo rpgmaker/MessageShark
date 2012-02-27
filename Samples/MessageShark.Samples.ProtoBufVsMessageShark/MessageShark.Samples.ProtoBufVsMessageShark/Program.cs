@@ -25,7 +25,7 @@ namespace MessageShark.Samples.ProtoBufVsMessageShark {
     class Program {
         static void Main(string[] args) {
 
-            //UnCommenting this line boost speed by 34ms
+            //UnCommenting this line boost speed
             //MessageSharkSerializer.Build();
 
             var simpleObject = new SimpleObject
