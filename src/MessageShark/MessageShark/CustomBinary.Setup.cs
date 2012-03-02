@@ -193,6 +193,10 @@ namespace MessageShark
                 TypeMapping[baseType] = new Dictionary<Type, byte>();
                 TypeIDMapping[baseType] = new Dictionary<byte, Type>();
             }
+            if (TypeIDMapping[baseType].ContainsKey(tag))
+                throw new InvalidOperationException(
+                    String.Format("Duplicated tag error for {0}. Tag# {1} already exists",
+                    type.Name, tag));
             TypeMapping[baseType][type] = tag;
             TypeIDMapping[baseType][tag] = type;
         }
