@@ -338,12 +338,19 @@ namespace MessageShark {
                 var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
                 var valueLocal = il.DeclareLocal(type);
                 var valueTypeLocal = il.DeclareLocal(TypeType);
+                var nullConditionLabel = il.DefineLabel();
 
                 if (isTypeClass)
                     il.Emit(OpCodes.Ldarg_2);
                 else il.Emit(OpCodes.Ldarga, 2);
                 il.Emit(OpCodes.Call, valueMethod);
                 il.Emit(OpCodes.Stloc, valueLocal.LocalIndex);
+
+
+                il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
+                il.Emit(OpCodes.Brfalse, nullConditionLabel);
+                
+
                 il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
                 il.Emit(OpCodes.Callvirt, GetTypeMethod);
                 il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
@@ -375,6 +382,8 @@ namespace MessageShark {
                         il.Emit(OpCodes.Br, branchLabel);
                     il.MarkLabel(currentConditionLabel);
                 }
+
+                il.MarkLabel(nullConditionLabel);
                 return;
             }
             method = GenerateSerializerClass(typeBuilder, type);
