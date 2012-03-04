@@ -7,3 +7,5 @@ Refer to samples folder for comparison between protobuf-net and MessageShark
 Refer to wiki for how to customize
 
 For performance benchmark refer to: http://theburningmonk.com/2012/02/performance-test-binary-serializers-part-iii/
+
+Licensed under GNU Library General Public License (LGPL) 
