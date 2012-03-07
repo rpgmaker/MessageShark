@@ -116,7 +116,7 @@ namespace MessageShark
 		#endregion
 		
         static CustomBinary() {
-            //RegisterObjectTypeMapping();
+            RegisterObjectTypeMapping();
             RegisterPrimitiveBufferWriter();
             RegisterPrimitiveBufferReader();
             RegisterBufferedTypes();
@@ -130,8 +130,18 @@ namespace MessageShark
                     {3, typeof(DateTime)}, {4, typeof(bool)}, {5, typeof(char)},
                     {6, typeof(double)}, {7, typeof(short)}, {8, typeof(long)},
                     {9, typeof(decimal)}, {10, typeof(float)}, {11, typeof(ushort)},
-                    {12, typeof(uint)}, {13, typeof(ulong)}, {14, GuidType}, {15, typeof(Uri)},
-                    {16, typeof(TimeSpan)}
+                    {12, typeof(uint)}, {13, typeof(ulong)}, {14, GuidType}, {15, typeof(Enum)},
+                    {16, typeof(TimeSpan)}, {17, typeof(TimeSpan?)}
+                };
+            TypeMapping[ObjectType] =
+                new Dictionary<Type, byte>()
+                {
+                    {StringType, 1}, {typeof(int), 2}, {typeof(DateTime), 3},
+                    {typeof(bool), 4}, {typeof(char), 5}, {typeof(double), 6},
+                    {typeof(short), 7}, {typeof(long), 8}, {typeof(decimal), 9},
+                    {typeof(float), 10}, {typeof(ushort), 11}, {typeof(uint), 12},
+                    {typeof(ulong), 13}, {GuidType, 14}, {typeof(Enum), 15}, {typeof(TimeSpan), 16},
+                    {typeof(TimeSpan?), 17}
                 };
         }
 
@@ -205,6 +215,7 @@ namespace MessageShark
             RegisterBufferedType<string>();
             RegisterBufferedType<Guid>();
             RegisterBufferedType<decimal>();
+            RegisterBufferedType<object>();
         }
 
         static void RegisterPrimitiveBufferWriter() {
@@ -226,6 +237,7 @@ namespace MessageShark
             RegisterWriter<TimeSpan?>(WriteNullableTimeSpanToBuffer);
             RegisterWriter<Enum>(WriteEnumToBuffer);
             RegisterWriter<byte>(WriteByteToBuffer);
+            RegisterWriter<object>(WriteObjectToBuffer);
         }
 
         static void RegisterPrimitiveBufferReader() {
@@ -247,6 +259,7 @@ namespace MessageShark
             RegisterReader(BytesToEnum);
             RegisterReader(BytesToBool);
             RegisterReader(BytesToByte);
+            RegisterReader(BytesToObject);
         }
 	}
 }

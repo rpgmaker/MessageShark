@@ -101,5 +101,48 @@ namespace MessageShark {
         public static ulong BytesToUInt64(byte[] buffer) {
             return BitConverter.ToUInt64(BytesToIntegerBytes(buffer, 8), 0);
         }
+
+        public static object BytesToObject(byte[] buffer) {
+            object obj = null;
+            var type = TypeIDMapping[ObjectType][buffer[0]];
+            var buffer1 = new byte[buffer.Length - 1];
+            Buffer.BlockCopy(buffer, 1, buffer1, 0, buffer1.Length);
+            if (type == typeof(string)) {
+                obj = BytesToString(buffer1);
+            } else if (type == typeof(int)) {
+                obj = BytesToInt32(buffer1);
+            } else if (type == typeof(DateTime)) {
+                obj = BytesToDateTime(buffer1);
+            } else if (type == typeof(bool)) {
+                obj = BytesToBool(buffer1);
+            } else if (type == typeof(char)) {
+                obj = BytesToChar(buffer1);
+            } else if (type == typeof(double)) {
+                obj = BytesToDouble(buffer1);
+            } else if (type == typeof(short)) {
+                obj = BytesToInt16(buffer1);
+            } else if (type == typeof(long)) {
+                obj = BytesToInt64(buffer1);
+            } else if (type == typeof(decimal)) {
+                obj = BytesToDecimal(buffer1);
+            } else if (type == typeof(float)) {
+                obj = BytesToFloat(buffer1);
+            } else if (type == typeof(ushort)) {
+                obj = BytesToUInt16(buffer1);
+            } else if (type == typeof(uint)) {
+                obj = BytesToUInt32(buffer1);
+            } else if (type == typeof(ulong)) {
+                obj = BytesToUInt64(buffer1);
+            } else if (type == typeof(Guid)) {
+                obj = BytesToGuid(buffer1);
+            } else if (type.IsEnum) {
+                obj = BytesToEnum(buffer1, type);
+            } else if (type == typeof(TimeSpan)) {
+                obj = BytesToTimeSpan(buffer1);
+            } else if (type == typeof(TimeSpan?)) {
+                obj = BytesToNullableTimeSpan(buffer1);
+            }
+            return obj;
+        }
     }
 }

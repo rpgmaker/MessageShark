@@ -11,15 +11,24 @@ using System.Reflection.Emit;
 
 namespace MessageShark {
     public static partial class CustomBinary {
-        static void WriteSerializerArray(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod) {
+        static void WriteSerializerArray(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod,
+            int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
             var itemType = type.GetElementType();
             var itemLocal = il.DeclareLocal(itemType);
             var listLocal = il.DeclareLocal(type);
             var indexLocal = il.DeclareLocal(typeof(int));
             var startLabel = il.DefineLabel();
             var endLabel = il.DefineLabel();
-            il.Emit(OpCodes.Ldarg_2);
-            if(valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+            
+            //il.Emit(OpCodes.Ldarg_2);
+            //if(valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+
+            if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+            if (valueMethod != null) {
+                if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Callvirt, valueMethod);
+            }
+
             il.Emit(OpCodes.Stloc, listLocal.LocalIndex);
             il.Emit(OpCodes.Ldc_I4_0);
             il.Emit(OpCodes.Stloc_S, indexLocal.LocalIndex);
@@ -30,8 +39,12 @@ namespace MessageShark {
             il.Emit(OpCodes.Ldelem, itemType);
             il.Emit(OpCodes.Stloc, itemLocal.LocalIndex);
             if (itemType.IsComplexType()) {
-                WriteSerializerCallClassMethod(typeBuilder, il, itemType, OpCodes.Ldloc, itemLocal.LocalIndex, 1, null,
-                    needClassHeader: false);
+                if (itemType.IsCollectionType())
+                    WriteSerializerClass(typeBuilder, il, itemType, 1, null, callerType: itemType, valueLocalIndex: itemLocal.LocalIndex,
+                    valueLocalOpCode: OpCodes.Ldloc);
+                else
+                    WriteSerializerCallClassMethod(typeBuilder, il, itemType, OpCodes.Ldloc, itemLocal.LocalIndex, 1, null,
+                        needClassHeader: false);
             } else {
                 WriteSerializerBytesToStream(il, itemType, OpCodes.Ldloc, itemLocal.LocalIndex, 1, null, isTargetCollection: true);
             }
@@ -47,7 +60,8 @@ namespace MessageShark {
             il.Emit(OpCodes.Blt, endLabel);
         }
 
-        static void WriteSerializerList(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod) {
+        static void WriteSerializerList(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod,
+            int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
             var arguments = type.GetGenericArguments();
             var listType = arguments.Length > 0 ? arguments[0] : ObjectType;
             var genericListType = GenericListType.MakeGenericType(listType);
@@ -57,8 +71,15 @@ namespace MessageShark {
             var startEnumeratorLabel = il.DefineLabel();
             var moveNextLabel = il.DefineLabel();
             var endEnumeratorLabel = il.DefineLabel();
-            il.Emit(OpCodes.Ldarg_2);
-            if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+            
+            //il.Emit(OpCodes.Ldarg_2);
+            //if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+            if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+            if (valueMethod != null) {
+                if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Callvirt, valueMethod);
+            }
+
             if (type.Name == "IList`1") il.Emit(OpCodes.Castclass, genericListType);
             il.Emit(OpCodes.Callvirt, genericListType.GetMethod("GetEnumerator"));
             il.Emit(OpCodes.Stloc_S, enumeratorLocal.LocalIndex);
@@ -71,7 +92,11 @@ namespace MessageShark {
                 .GetGetMethod());
             il.Emit(OpCodes.Stloc, entryLocal.LocalIndex);
             if (listType.IsComplexType()) {
-                WriteSerializerCallClassMethod(typeBuilder, il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, needClassHeader: false);
+                if (listType.IsCollectionType())
+                    WriteSerializerClass(typeBuilder, il, listType, 1, null, callerType: listType, valueLocalIndex: entryLocal.LocalIndex,
+                    valueLocalOpCode: OpCodes.Ldloc);
+                else
+                    WriteSerializerCallClassMethod(typeBuilder, il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, needClassHeader: false);
             } else {
                 WriteSerializerBytesToStream(il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, isTargetCollection: true);
             }
@@ -88,7 +113,8 @@ namespace MessageShark {
             il.MarkLabel(endEnumeratorLabel);
         }
 
-        static void WriteSerializerDictionary(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo getValueMethod) {
+        static void WriteSerializerDictionary(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo getValueMethod,
+            int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
             var arguments = type.GetGenericArguments();
             var keyType = arguments[0];
             var valueType = arguments[1];
@@ -99,8 +125,16 @@ namespace MessageShark {
             var startEnumeratorLabel = il.DefineLabel();
             var moveNextLabel = il.DefineLabel();
             var endEnumeratorLabel = il.DefineLabel();
-            il.Emit(OpCodes.Ldarg_2);
-            if (getValueMethod != null) il.Emit(OpCodes.Callvirt, getValueMethod);
+            
+            //il.Emit(OpCodes.Ldarg_2);
+            //if (getValueMethod != null) il.Emit(OpCodes.Callvirt, getValueMethod);
+
+            if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+            if (getValueMethod != null) {
+                if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Callvirt, getValueMethod);
+            }
+
             il.Emit(OpCodes.Callvirt,
                 GenericDictType.MakeGenericType(keyType, valueType)
                 .GetMethod("GetEnumerator"));
@@ -115,16 +149,24 @@ namespace MessageShark {
             il.Emit(OpCodes.Stloc, entryLocal.LocalIndex);
             if (keyType.IsComplexType()) {
                 var keyMethod = keyValuePairType.GetProperty("Key").GetGetMethod();
-                WriteSerializerCallClassMethod(typeBuilder, il, keyType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 1, keyMethod,
-                needClassHeader: false);
+                if (keyType.IsCollectionType())
+                    WriteSerializerClass(typeBuilder, il, keyType, 1, keyMethod, callerType: keyType, valueLocalIndex: entryLocal.LocalIndex,
+                    valueLocalOpCode: OpCodes.Ldloca_S);
+                else
+                    WriteSerializerCallClassMethod(typeBuilder, il, keyType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 1, keyMethod,
+                    needClassHeader: false);
             } else {
                 var keyMethod = keyValuePairType.GetProperty("Key").GetGetMethod();
                 WriteSerializerBytesToStream(il, keyType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 1, keyMethod, isTargetCollection: true);
             }
             if (valueType.IsComplexType()) {
                 var valueMethod = keyValuePairType.GetProperty("Value").GetGetMethod();
-                WriteSerializerCallClassMethod(typeBuilder, il, valueType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 2, valueMethod,
-                needClassHeader: false);
+                if (valueType.IsCollectionType())
+                    WriteSerializerClass(typeBuilder, il, valueType, 2, valueMethod, callerType: valueType, valueLocalIndex: entryLocal.LocalIndex,
+                    valueLocalOpCode: OpCodes.Ldloca_S);
+                else
+                    WriteSerializerCallClassMethod(typeBuilder, il, valueType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 2, valueMethod,
+                    needClassHeader: false);
             } else {
                 var valueMethod = keyValuePairType.GetProperty("Value").GetGetMethod();
                 WriteSerializerBytesToStream(il, valueType, OpCodes.Ldloca_S, entryLocal.LocalIndex, 2, valueMethod, isTargetCollection: true);
@@ -175,7 +217,8 @@ namespace MessageShark {
         }
 
         static void WriteSerializerClass(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo valueMethod,
-            Type callerType = null, bool isEntryPoint = false, Type baseType = null) {
+            Type callerType = null, bool isEntryPoint = false, Type baseType = null, 
+            int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
             var isDict = type.IsDictionaryType();
             var isList = type.IsListType();
             var isClass = !isDict && !isList;
@@ -183,24 +226,30 @@ namespace MessageShark {
             var isDefaultLabel = needCondition ? il.DefineLabel() : DefaultLabel;
 
             if (needCondition) {
-                il.Emit(OpCodes.Ldarg_2);
-                if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+                if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+                if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                if (valueMethod != null) {
+                    il.Emit(OpCodes.Callvirt, valueMethod);
+                }
                 il.Emit(OpCodes.Brfalse, isDefaultLabel);
             }
             if (type.IsClassType()) {
                 WriteSerializerProperties(typeBuilder, il, type, callerType, isEntryPoint, baseType: baseType);
             } else {
                 il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Ldarg_2);
-                if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
+                if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+                if (valueMethod != null) {
+                    if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                    il.Emit(OpCodes.Callvirt, valueMethod);
+                }
                 il.Emit(OpCodes.Castclass, ICollectionType);
                 il.Emit(OpCodes.Ldc_I4, tag);
                 il.Emit(OpCodes.Call, WriteCollectionHeaderMethod);
                 if (isDict)
-                    WriteSerializerDictionary(typeBuilder, il, type, valueMethod);
+                    WriteSerializerDictionary(typeBuilder, il, type, valueMethod, valueLocalIndex: valueLocalIndex, valueLocalOpCode: valueLocalOpCode);
                 else if (isList) {
-                    if (type.IsArray) WriteSerializerArray(typeBuilder, il, type, valueMethod);
-                    else WriteSerializerList(typeBuilder, il, type, valueMethod);
+                    if (type.IsArray) WriteSerializerArray(typeBuilder, il, type, valueMethod, valueLocalIndex: valueLocalIndex, valueLocalOpCode: valueLocalOpCode);
+                    else WriteSerializerList(typeBuilder, il, type, valueMethod, valueLocalIndex: valueLocalIndex, valueLocalOpCode: valueLocalOpCode);
                 }
             }
             if (needCondition)
@@ -349,7 +398,7 @@ namespace MessageShark {
 
                 il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
                 il.Emit(OpCodes.Brfalse, nullConditionLabel);
-                
+
 
                 il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
                 il.Emit(OpCodes.Callvirt, GetTypeMethod);

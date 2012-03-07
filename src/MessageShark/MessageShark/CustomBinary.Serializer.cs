@@ -124,8 +124,7 @@ namespace MessageShark {
             WriteTimeSpanToBuffer(customBuffer, value ?? TimeSpan.Zero, tag, isTargetCollection);
         }
 
-        public static void WriteTimeSpanToBuffer(CustomBuffer customBuffer, TimeSpan value, int tag, bool isTargetCollection) {
-            if (value == TimeSpan.Zero && !isTargetCollection) return;
+        static byte[] TimeSpanToBytes(TimeSpan value) {
             byte[] buffer = null;
             if (value == TimeSpan.MaxValue) buffer = MaxTimeSpanBytes;
             else if (value == TimeSpan.MinValue) buffer = MinTimeSpanBytes;
@@ -144,11 +143,16 @@ namespace MessageShark {
                 else {
                     var ticksBuffer = Int64ToBytes(ticks);
                     buffer = new byte[ticksBuffer.Length + 1];
-                    buffer[0] = (byte)(tickIndex > - 1 ? tickIndex : TimeSpanTicksLength);
+                    buffer[0] = (byte)(tickIndex > -1 ? tickIndex : TimeSpanTicksLength);
                     Buffer.BlockCopy(ticksBuffer, 0, buffer, 1, ticksBuffer.Length);
                 }
             }
-            WriteUnBufferedBytes(customBuffer, buffer, tag);
+            return buffer;
+        }
+
+        public static void WriteTimeSpanToBuffer(CustomBuffer customBuffer, TimeSpan value, int tag, bool isTargetCollection) {
+            if (value == TimeSpan.Zero && !isTargetCollection) return;
+            WriteUnBufferedBytes(customBuffer, TimeSpanToBytes(value), tag);
         }
 
         public static void WriteUInt64ToBuffer(CustomBuffer customBuffer, ulong value, int tag, bool isTargetCollection) {
@@ -233,6 +237,57 @@ namespace MessageShark {
 
         public static void WriteCollectionHeader(CustomBuffer customBuffer, ICollection collection, int tag) {
             WriteUnBufferedBytes(customBuffer, Int32ToBytes(collection.Count), tag);
+        }
+
+        public static void WriteObjectToBuffer(CustomBuffer customBuffer, object value, int tag, bool isTargetCollection) {
+            if (value == null && !isTargetCollection) return;
+            byte[] buffer = null;
+            var type = value.GetType();
+            if (type == typeof(string)) {
+                buffer = StringToByteArray((string)value);
+            } else if (type == typeof(int)) {
+                buffer = Int32ToBytes((int)value);
+            } else if (type == typeof(DateTime)) {
+                buffer = DateTimeToByteArray((DateTime)value);
+            } else if (type == typeof(bool)) {
+                buffer = new byte[] { (bool)value ? (byte)1 : (byte)0 };
+            } else if (type == typeof(char)) {
+                buffer = Int16ToBytes((short)value);
+            } else if (type == typeof(double)) {
+                unsafe {
+                    var dValue = (double)value;
+                    buffer = Int64ToBytes(*((long*)&dValue));
+                }
+            } else if (type == typeof(short)) {
+                buffer = Int16ToBytes((short)value);
+            } else if (type == typeof(long)) {
+                buffer = Int64ToBytes((long)value);
+            } else if (type == typeof(decimal)) {
+                buffer = DecimalToByteArray((decimal)value);
+            } else if (type == typeof(float)) {
+                unsafe {
+                    var fValue = (float)value;
+                    buffer = Int32ToBytes(*((int*)&fValue));
+                }
+            } else if (type == typeof(ushort)) {
+                buffer = Int16ToBytes((short)value);
+            } else if (type == typeof(uint)) {
+                buffer = Int32ToBytes((int)value);
+            } else if (type == typeof(ulong)) {
+                buffer = Int64ToBytes((long)value);
+            } else if (type == typeof(Guid)) {
+                buffer = ((Guid)value).ToByteArray();
+            } else if (type.IsEnum) {
+                buffer = Int32ToBytes(Convert.ToInt32((Enum)value));
+            } else if (type == typeof(TimeSpan)) {
+                buffer = TimeSpanToBytes((TimeSpan)value);
+            } else if (type == typeof(TimeSpan?)) {
+                buffer = TimeSpanToBytes((value as TimeSpan?) ?? TimeSpan.Zero);
+            }
+            var buffer2 = new byte[buffer.Length + 1];
+            buffer2[0] = TypeMapping[ObjectType][type];
+            Buffer.BlockCopy(buffer, 0, buffer2, 1, buffer.Length);
+            WriteBufferedBytes(customBuffer, buffer2, tag);
         }
     }
 }

@@ -220,7 +220,7 @@ namespace MessageShark
             if (isClass) {
                 MethodBuilder method;
                 var hasTypeMapping = TypeMapping.ContainsKey(type);
-                
+
                 if (hasTypeMapping) {
                     var index = 0;
                     var typeMapping = TypeMapping[type];
@@ -229,7 +229,7 @@ namespace MessageShark
                     var needBranchLabel = count > 1;
                     var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
                     var valueTypeLocal = il.DeclareLocal(TypeType);
-                    
+
                     il.Emit(OpCodes.Ldarg_2);
                     il.Emit(OpCodes.Ldtoken, type);
                     il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
@@ -287,7 +287,8 @@ namespace MessageShark
             } else if (isCollection) {
                 WriteDeserializerClass(typeBuilder, il, type, tag, null, itemLocalIndex: itemLocalIndex);
             } else {
-                var needTypeForReader = PrimitiveReadersWithTypes.Contains(type.IsEnum ? EnumType : type);
+                var isTypeEnum = type.IsEnum;
+                var needTypeForReader = PrimitiveReadersWithTypes.Contains(isTypeEnum ? EnumType : type);
                 il.Emit(OpCodes.Ldarg_2);
                 il.Emit(OpCodes.Ldarg_3);
                 il.Emit(OpCodes.Ldc_I4, 1);
@@ -297,7 +298,7 @@ namespace MessageShark
                     il.Emit(OpCodes.Ldtoken, type);
                     il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                 }
-                if (type.IsEnum)
+                if (isTypeEnum)
                     il.Emit(OpCodes.Call, PrimitiveReaderMethods[EnumType]);
                 else
                     il.Emit(OpCodes.Call, PrimitiveReaderMethods[type]);
@@ -310,7 +311,10 @@ namespace MessageShark
             MethodBuilder method;
             var local = il.DeclareLocal(type);
             var hasTypeMapping = TypeMapping.ContainsKey(type);
-            
+            il.Emit(OpCodes.Ldc_I4, tag);
+            il.Emit(OpCodes.Ldarg_3);
+            il.Emit(OpCodes.Call, MoveToNextBytesMethod);
+
             if (hasTypeMapping) {
                 var index = 0;
                 var typeMapping = TypeMapping[type];
@@ -404,13 +408,11 @@ namespace MessageShark
                     if (propType.IsCollectionType())
                         WriteDeserializerClass(typeBuilder, il, propType, tag, setMethod, callerType: callerType);
                     else {
-                        il.Emit(OpCodes.Ldc_I4, tag);
-                        il.Emit(OpCodes.Ldarg_3);
-                        il.Emit(OpCodes.Call, MoveToNextBytesMethod);
                         WriteDeserializerCallClassMethod(typeBuilder, il, propType, tag, setMethod);
                     }
                 } else {
-                    var needTypeForReader = PrimitiveReadersWithTypes.Contains(propType.IsEnum ? EnumType : propType);
+                    var isTypeEnum = propType.IsEnum;
+                    var needTypeForReader = PrimitiveReadersWithTypes.Contains(isTypeEnum ? EnumType : propType);
                     il.Emit(OpCodes.Ldarg_1);
                     il.Emit(OpCodes.Ldarg_2);
                     il.Emit(OpCodes.Ldarg_3);
@@ -421,7 +423,7 @@ namespace MessageShark
                         il.Emit(OpCodes.Ldtoken, propType);
                         il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                     }
-                    if (propType.IsEnum)
+                    if (isTypeEnum)
                         il.Emit(OpCodes.Call, PrimitiveReaderMethods[EnumType]);
                     else
                         il.Emit(OpCodes.Call, PrimitiveReaderMethods[propType]);
