@@ -19,9 +19,6 @@ namespace MessageShark {
             var indexLocal = il.DeclareLocal(typeof(int));
             var startLabel = il.DefineLabel();
             var endLabel = il.DefineLabel();
-            
-            //il.Emit(OpCodes.Ldarg_2);
-            //if(valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
 
             if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
             if (valueMethod != null) {
@@ -72,8 +69,6 @@ namespace MessageShark {
             var moveNextLabel = il.DefineLabel();
             var endEnumeratorLabel = il.DefineLabel();
             
-            //il.Emit(OpCodes.Ldarg_2);
-            //if (valueMethod != null) il.Emit(OpCodes.Callvirt, valueMethod);
             if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
             if (valueMethod != null) {
                 if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
@@ -125,9 +120,6 @@ namespace MessageShark {
             var startEnumeratorLabel = il.DefineLabel();
             var moveNextLabel = il.DefineLabel();
             var endEnumeratorLabel = il.DefineLabel();
-            
-            //il.Emit(OpCodes.Ldarg_2);
-            //if (getValueMethod != null) il.Emit(OpCodes.Callvirt, getValueMethod);
 
             if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
             if (getValueMethod != null) {
