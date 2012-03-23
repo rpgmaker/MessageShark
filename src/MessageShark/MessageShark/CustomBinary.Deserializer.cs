@@ -39,6 +39,10 @@ namespace MessageShark {
             return BytesToTimeSpan(buffer);
         }
 
+        public static int? BytesToNullableInt32(byte[] buffer) {
+            return BytesToInt32(buffer);
+        }
+
         public static TimeSpan BytesToTimeSpan(byte[] buffer) {
             if (buffer.Length == 1) {
                 if (buffer[0] == 0) return TimeSpan.MinValue;
@@ -139,6 +143,8 @@ namespace MessageShark {
                 obj = BytesToEnum(buffer1, type);
             } else if (type == typeof(TimeSpan)) {
                 obj = BytesToTimeSpan(buffer1);
+            } else if (type == typeof(int?)) {
+                obj = BytesToNullableInt32(buffer1);
             } else if (type == typeof(TimeSpan?)) {
                 obj = BytesToNullableTimeSpan(buffer1);
             }

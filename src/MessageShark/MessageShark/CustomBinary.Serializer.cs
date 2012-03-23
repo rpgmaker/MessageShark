@@ -214,6 +214,10 @@ namespace MessageShark {
             WriteUnBufferedBytes(customBuffer, Int32ToBytes(value), tag);
         }
 
+        public static void WriteNullableInt32ToBuffer(CustomBuffer customBuffer, int? value, int tag, bool isTargetCollection) {
+            WriteInt32ToBuffer(customBuffer, value ?? 0, tag, isTargetCollection);
+        }
+
         public static void WriteDateTimeToBuffer(CustomBuffer customBuffer, DateTime value, int tag, bool isTargetCollection) {
             if (value == DateTime.MinValue && !isTargetCollection) return;
             WriteUnBufferedBytes(customBuffer, DateTimeToByteArray(value), tag);
@@ -273,6 +277,8 @@ namespace MessageShark {
                 buffer = Int16ToBytes((short)value);
             } else if (type == typeof(uint)) {
                 buffer = Int32ToBytes((int)value);
+            } else if (type == typeof(int?)) {
+                buffer = Int32ToBytes((value as int?) ?? 0);
             } else if (type == typeof(ulong)) {
                 buffer = Int64ToBytes((long)value);
             } else if (type == typeof(Guid)) {

@@ -131,7 +131,7 @@ namespace MessageShark
                     {6, typeof(double)}, {7, typeof(short)}, {8, typeof(long)},
                     {9, typeof(decimal)}, {10, typeof(float)}, {11, typeof(ushort)},
                     {12, typeof(uint)}, {13, typeof(ulong)}, {14, GuidType}, {15, typeof(Enum)},
-                    {16, typeof(TimeSpan)}, {17, typeof(TimeSpan?)}
+                    {16, typeof(TimeSpan)}, {17, typeof(TimeSpan?)}, {18, typeof(int?)}
                 };
             TypeMapping[ObjectType] =
                 new Dictionary<Type, byte>()
@@ -141,7 +141,7 @@ namespace MessageShark
                     {typeof(short), 7}, {typeof(long), 8}, {typeof(decimal), 9},
                     {typeof(float), 10}, {typeof(ushort), 11}, {typeof(uint), 12},
                     {typeof(ulong), 13}, {GuidType, 14}, {typeof(Enum), 15}, {typeof(TimeSpan), 16},
-                    {typeof(TimeSpan?), 17}
+                    {typeof(TimeSpan?), 17}, {typeof(int?), 18}
                 };
         }
 
@@ -220,6 +220,7 @@ namespace MessageShark
 
         static void RegisterPrimitiveBufferWriter() {
             RegisterWriter<int>(WriteInt32ToBuffer);
+            RegisterWriter<int?>(WriteNullableInt32ToBuffer);
             RegisterWriter<DateTime>(WriteDateTimeToBuffer);
             RegisterWriter<string>(WriteStringToBuffer);
             RegisterWriter<Guid>(WriteGuidToBuffer);
@@ -242,6 +243,7 @@ namespace MessageShark
 
         static void RegisterPrimitiveBufferReader() {
             RegisterReader(BytesToInt32);
+            RegisterReader(BytesToNullableInt32);
             RegisterReader(BytesToDateTime);
             RegisterReader(BytesToString);
             RegisterReader(BytesToGuid);
