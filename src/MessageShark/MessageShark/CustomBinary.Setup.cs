@@ -211,6 +211,12 @@ namespace MessageShark
             TypeIDMapping[baseType][tag] = type;
         }
 
+        internal static bool IsTypeRegisterFor<TType>(Type type) {
+            var baseType = typeof(TType);
+            return TypeMapping.ContainsKey(baseType) &&
+                TypeMapping[baseType].ContainsKey(type);
+        }
+
         static void RegisterBufferedTypes() {
             RegisterBufferedType<string>();
             RegisterBufferedType<Guid>();

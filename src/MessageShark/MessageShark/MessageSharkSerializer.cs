@@ -82,5 +82,14 @@ namespace MessageShark {
             CustomBinary.RegisterTypeFor<TType>(type, tag);
         }
 
+        /// <summary>
+        /// Returns true if type is already register for TType
+        /// </summary>
+        /// <typeparam name="TType"></typeparam>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static bool IsTypeRegisterFor<TType>(Type type) {
+            return CustomBinary.IsTypeRegisterFor<TType>(type);
+        }
     }
 }
