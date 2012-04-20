@@ -57,11 +57,14 @@ namespace MessageShark {
                 || ListType.IsAssignableFrom(type);
         }
 
+
+
         static IEnumerable<PropertyInfo> GetTypeProperties(Type type) {
             IEnumerable<PropertyInfo> props;
             if (!TypeProperties.TryGetValue(type, out props))
                 TypeProperties[type] = props =
                     type.GetProperties(PropertyBinding)
+                    .Where(p => p.GetCustomAttributes(IgnoreAttribute, true).Length < 1)
                     .OrderBy(p => p.Name);
             return props;
         }

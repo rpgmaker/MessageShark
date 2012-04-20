@@ -60,6 +60,7 @@ namespace MessageShark
         static readonly Type TypeType = typeof(Type);
         static readonly Type EnumType = typeof(Enum);
         static readonly Type CustomBinaryType = typeof(CustomBinary);
+        static readonly Type IgnoreAttribute = typeof(MessageSharkIgnoreAttribute);
 		static readonly Type ByteArrayType = typeof(byte[]);
 		static readonly Type SerializerType = typeof(ISerializer<>);
 		static MethodInfo BufferStreamToArrayMethod =
