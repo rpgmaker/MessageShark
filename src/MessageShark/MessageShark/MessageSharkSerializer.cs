@@ -11,7 +11,7 @@ namespace MessageShark {
         /// <typeparam name="T"></typeparam>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static byte[] Serialize<T>(T value) where T : class {
+        public static byte[] Serialize<T>(T value) {
             return CustomBinary.GetSerializer<T>().Serialize(value);
         }
 
@@ -22,7 +22,7 @@ namespace MessageShark {
         /// <typeparam name="T"></typeparam>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public static T Deserialize<T>(byte[] buffer) where T : class {
+        public static T Deserialize<T>(byte[] buffer) {
             return CustomBinary.GetSerializer<T>().Deserialize(buffer);
         }
 

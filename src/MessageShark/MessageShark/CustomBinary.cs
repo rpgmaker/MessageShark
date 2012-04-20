@@ -69,14 +69,14 @@ namespace MessageShark {
             return props;
         }
 
-        internal static ISerializer<T> GetSerializer<T>() where T : class {
+        internal static ISerializer<T> GetSerializer<T>() {
             var type = typeof(T);
             var serializer = default(object);
             if (!SerializerTypes.TryGetValue(type, out serializer)) {
                 var serializerType = GenerateSerializer(type);
                 serializer = SerializerTypes[type] = Activator.CreateInstance(serializerType);
             }
-            return (serializer as ISerializer<T>);
+            return ((ISerializer<T>)serializer);
         }
         
         public static bool IsNextTagForPropertyTag(int tag, byte[] buffer, int startIndex) {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 
 namespace MessageShark {
-    public interface ISerializer<T> where T : class {
+    public interface ISerializer<T> {
         byte[] Serialize(T obj);
         T Deserialize(byte[] buffer);
     }

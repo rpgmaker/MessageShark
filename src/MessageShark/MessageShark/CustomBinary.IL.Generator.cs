@@ -10,6 +10,7 @@ namespace MessageShark {
         static void GenerateSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int bufferLocalIndex) {
             MethodBuilder method;
             if (TypeMapping.ContainsKey(type)) {
+                var isTypeClass = !type.IsValueType;
                 var index = 0;
                 var typeMapping = TypeMapping[type];
                 var count = typeMapping.Count;
@@ -17,7 +18,9 @@ namespace MessageShark {
                 var needBranchLabel = count > 1;
                 var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
                 var valueTypeLocal = il.DeclareLocal(TypeType);
-                il.Emit(OpCodes.Ldarg_1);
+                if (isTypeClass)
+                    il.Emit(OpCodes.Ldarg_1);
+                else il.Emit(OpCodes.Ldarga, 1);
                 il.Emit(OpCodes.Callvirt, GetTypeMethod);
                 il.Emit(OpCodes.Stloc, valueTypeLocal.LocalIndex);
 
@@ -109,10 +112,18 @@ namespace MessageShark {
                 }
             } else {
                 method = GenerateDeserializerClass(typeBuilder, type);
-                il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
-                il.Emit(OpCodes.Stloc, valueLocalIndex);
+                var isTypeClass = !type.IsValueType;
+                if (isTypeClass) {
+                    il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
+                    il.Emit(OpCodes.Stloc, valueLocalIndex);
+                } else {
+                    il.Emit(OpCodes.Ldloca, valueLocalIndex);
+                    il.Emit(OpCodes.Initobj, type);
+                }
                 il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Ldloc, valueLocalIndex);
+                if (isTypeClass)
+                    il.Emit(OpCodes.Ldloc, valueLocalIndex);
+                else il.Emit(OpCodes.Ldloca, valueLocalIndex);
                 il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldloca_S, startIndexLocalIndex);
                 il.Emit(OpCodes.Callvirt, method);
