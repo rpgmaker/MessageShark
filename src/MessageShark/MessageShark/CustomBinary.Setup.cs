@@ -22,8 +22,8 @@ namespace MessageShark
         static readonly ConcurrentBag<Type> PrimitiveReadersWithTypes = new ConcurrentBag<Type>();
         static readonly ConcurrentDictionary<Type, MethodInfo> PrimitiveWriterMethods = new ConcurrentDictionary<Type, MethodInfo>();
         static readonly ConcurrentDictionary<Type, MethodInfo> PrimitiveReaderMethods = new ConcurrentDictionary<Type, MethodInfo>();
-        static readonly ConcurrentDictionary<Type, MethodBuilder> WriterMethodBuilders = new ConcurrentDictionary<Type, MethodBuilder>();
-        static readonly ConcurrentDictionary<Type, MethodBuilder> ReaderMethodBuilders = new ConcurrentDictionary<Type, MethodBuilder>();
+        static readonly ConcurrentDictionary<string, MethodBuilder> WriterMethodBuilders = new ConcurrentDictionary<string, MethodBuilder>();
+        static readonly ConcurrentDictionary<string, MethodBuilder> ReaderMethodBuilders = new ConcurrentDictionary<string, MethodBuilder>();
         static readonly ConcurrentDictionary<Type, IEnumerable<PropertyInfo>> TypeProperties = new ConcurrentDictionary<Type, IEnumerable<PropertyInfo>>();
         static readonly ConcurrentDictionary<Type, object> SerializerTypes = new ConcurrentDictionary<Type, object>();
 		static readonly ConcurrentDictionary<Type, Func<object>> DictFuncNew = new ConcurrentDictionary<Type, Func<object>>();

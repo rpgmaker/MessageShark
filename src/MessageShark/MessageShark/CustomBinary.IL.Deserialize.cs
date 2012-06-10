@@ -9,19 +9,22 @@ namespace MessageShark
 {
 	public static partial class CustomBinary
 	{
-        static MethodBuilder GenerateDeserializerClass(TypeBuilder typeBuilder, Type objType) {
+        static MethodBuilder GenerateDeserializerClass(TypeBuilder typeBuilder, Type objType, Type ownerType = null) {
             MethodBuilder method;
-            if (ReaderMethodBuilders.TryGetValue(objType, out method)) return method;
-            var methodName = String.Intern("Read") + objType.Name;
+            var suffix = ownerType == objType ? "Method" : string.Empty;
+            var key = objType.Name + suffix;
+            if (ReaderMethodBuilders.TryGetValue(key, out method)) return method;
+            var methodName = String.Intern("Read") + key;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
                 typeof(void), new[] { objType.IsValueType ? objType.MakeByRefType() : objType, ByteArrayType, typeof(int).MakeByRefType() });
 
+            ReaderMethodBuilders[key] = method;
             var methodIL = method.GetILGenerator();
 
             WriteDeserializerClass(typeBuilder, methodIL, objType, tag: 0, setMethod: null, callerType: objType);
 
             methodIL.Emit(OpCodes.Ret);
-            return (ReaderMethodBuilders[objType] = method);
+            return method;
         }
 
         static void WriteDeserializerClass(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod,
@@ -307,7 +310,7 @@ namespace MessageShark
             }
         }
 
-        static void WriteDeserializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod) {
+        static void WriteDeserializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod, Type ownerType = null) {
             MethodBuilder method;
             var local = il.DeclareLocal(type);
             var hasTypeMapping = TypeMapping.ContainsKey(type);
@@ -344,7 +347,7 @@ namespace MessageShark
                     il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
                     il.Emit(OpCodes.Brfalse, currentConditionLabel);
 
-                    method = GenerateDeserializerClass(typeBuilder, mapType);
+                    method = GenerateDeserializerClass(typeBuilder, mapType, ownerType: ownerType);
                     il.Emit(OpCodes.Newobj, mapType.GetConstructor(Type.EmptyTypes));
                     il.Emit(OpCodes.Stloc, local.LocalIndex);
                     il.Emit(OpCodes.Ldarg_0);
@@ -361,7 +364,7 @@ namespace MessageShark
                     il.MarkLabel(currentConditionLabel);
                 }
             } else {
-                method = GenerateDeserializerClass(typeBuilder, type);
+                method = GenerateDeserializerClass(typeBuilder, type, ownerType: ownerType);
                 var isTypeClass = type.IsClass;
                 if (isTypeClass) {
                     il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
@@ -408,7 +411,7 @@ namespace MessageShark
                     if (propType.IsCollectionType())
                         WriteDeserializerClass(typeBuilder, il, propType, tag, setMethod, callerType: callerType);
                     else {
-                        WriteDeserializerCallClassMethod(typeBuilder, il, propType, tag, setMethod);
+                        WriteDeserializerCallClassMethod(typeBuilder, il, propType, tag, setMethod, ownerType: type);
                     }
                 } else {
                     var isTypeEnum = propType.IsEnum;

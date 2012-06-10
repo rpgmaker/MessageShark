@@ -191,21 +191,25 @@ namespace MessageShark {
             il.Emit(OpCodes.Call, PrimitiveWriterMethods[type]);
         }
 
-        static MethodBuilder GenerateSerializerClass(TypeBuilder typeBuilder, Type objType, bool isEntryPoint = false, Type baseType = null) {
+        static MethodBuilder GenerateSerializerClass(TypeBuilder typeBuilder, Type objType, bool isEntryPoint = false,
+            Type baseType = null, Type ownerType = null) {
             MethodBuilder method;
-            if (WriterMethodBuilders.TryGetValue(objType, out method)) return method;
-            var methodName = String.Intern("Write") + objType.Name;
+            var suffix = ownerType == objType ? "Method" : string.Empty;
+            var key = objType.Name + suffix;
+            if (WriterMethodBuilders.TryGetValue(key, out method)) return method;
+            var methodName = String.Intern("Write") + key;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
                 typeof(void), new[] { typeof(CustomBuffer), objType,
                     typeof(int), typeof(bool) });
 
+            WriterMethodBuilders[key] = method;
             var methodIL = method.GetILGenerator();
 
             WriteSerializerClass(typeBuilder, methodIL, objType, tag: 0, valueMethod: null, callerType: objType, isEntryPoint: isEntryPoint,
                 baseType: baseType);
             
             methodIL.Emit(OpCodes.Ret);
-            return (WriterMethodBuilders[objType] = method);
+            return method;
         }
 
         static void WriteSerializerClass(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo valueMethod,
@@ -347,7 +351,7 @@ namespace MessageShark {
                     if (propType.IsCollectionType())
                         WriteSerializerClass(typeBuilder, il, propType, tag, getMethod, callerType: callerType);
                     else {
-                        WriteSerializerCallClassMethod(typeBuilder, il, propType, getMethod, tag, needClassHeader, callerType);
+                        WriteSerializerCallClassMethod(typeBuilder, il, propType, getMethod, tag, needClassHeader, callerType, ownerType: type);
                     }
                 } else {
                     var isTypeEnum = propType.IsEnum;
@@ -367,7 +371,7 @@ namespace MessageShark {
         }
 
         static void WriteSerializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod, int tag,
-            bool needClassHeader, Type callerType) {
+            bool needClassHeader, Type callerType, Type ownerType = null) {
             MethodBuilder method;
             var isTypeClass = callerType.IsClass;
             if (TypeMapping.ContainsKey(type)) {
@@ -408,7 +412,7 @@ namespace MessageShark {
                     il.Emit(OpCodes.Call, GetTypeOpEqualityMethod);
                     il.Emit(OpCodes.Brfalse, currentConditionLabel);
 
-                    method = GenerateSerializerClass(typeBuilder, mapType, baseType: type);
+                    method = GenerateSerializerClass(typeBuilder, mapType, baseType: type, ownerType: ownerType);
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Ldarg_1);
                     il.Emit(OpCodes.Ldloc, valueLocal.LocalIndex);
@@ -427,7 +431,7 @@ namespace MessageShark {
                 il.MarkLabel(nullConditionLabel);
                 return;
             }
-            method = GenerateSerializerClass(typeBuilder, type);
+            method = GenerateSerializerClass(typeBuilder, type, ownerType: ownerType);
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldarg_1);
             if (isTypeClass)
