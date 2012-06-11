@@ -12,9 +12,10 @@ namespace MessageShark
         static MethodBuilder GenerateDeserializerClass(TypeBuilder typeBuilder, Type objType, Type ownerType = null) {
             MethodBuilder method;
             var suffix = ownerType == objType ? "Method" : string.Empty;
-            var key = objType.Name + suffix;
+            var key = objType.FullName + suffix;
+            var methodPrefix = objType.Name + suffix;
             if (ReaderMethodBuilders.TryGetValue(key, out method)) return method;
-            var methodName = String.Intern("Read") + key;
+            var methodName = String.Intern("Read") + methodPrefix;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
                 typeof(void), new[] { objType.IsValueType ? objType.MakeByRefType() : objType, ByteArrayType, typeof(int).MakeByRefType() });
 

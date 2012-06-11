@@ -195,9 +195,10 @@ namespace MessageShark {
             Type baseType = null, Type ownerType = null) {
             MethodBuilder method;
             var suffix = ownerType == objType ? "Method" : string.Empty;
-            var key = objType.Name + suffix;
+            var key = objType.FullName + suffix;
+            var methodPrefix = objType.Name + suffix;
             if (WriterMethodBuilders.TryGetValue(key, out method)) return method;
-            var methodName = String.Intern("Write") + key;
+            var methodName = String.Intern("Write") + methodPrefix;
             method = typeBuilder.DefineMethod(methodName, MethodAttribute,
                 typeof(void), new[] { typeof(CustomBuffer), objType,
                     typeof(int), typeof(bool) });
