@@ -15,6 +15,13 @@ namespace MessageShark {
             return CustomBinary.GetSerializer<T>().Serialize(value);
         }
 
+        /// <summary>
+        /// Precompile the specified type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static void Compile<T>() {
+            CustomBinary.GetSerializer<T>();
+        }
 
         /// <summary>
         /// Deserialize buffer into T type

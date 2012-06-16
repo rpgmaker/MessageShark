@@ -12,6 +12,8 @@ using System.Reflection.Emit;
 namespace MessageShark {
     public static partial class CustomBinary {
 
+        private static object _lockObject = new object();
+
         public static byte[] EncodeLength(int length, int tag) {
             return tag <= 15 ? new byte[] { (byte)((tag << 4) | length) } : new byte[] { (byte)length, (byte)tag };
         }
@@ -73,8 +75,10 @@ namespace MessageShark {
             var type = typeof(T);
             var serializer = default(object);
             if (!SerializerTypes.TryGetValue(type, out serializer)) {
-                var serializerType = GenerateSerializer(type);
-                serializer = SerializerTypes[type] = Activator.CreateInstance(serializerType);
+                lock (_lockObject) {
+                    var serializerType = GenerateSerializer(type);
+                    serializer = SerializerTypes[type] = Activator.CreateInstance(serializerType);
+                }
             }
             return ((ISerializer<T>)serializer);
         }
