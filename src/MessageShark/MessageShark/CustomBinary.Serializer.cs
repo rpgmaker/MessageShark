@@ -206,7 +206,7 @@ namespace MessageShark {
 
         public static void WriteBoolToBuffer(CustomBuffer customBuffer, bool value, int tag, bool isTargetCollection) {
             if (value == false && !isTargetCollection) return;
-            WriteUnBufferedBytes(customBuffer, BooleanBytes, tag);
+            WriteUnBufferedBytes(customBuffer, value ? TrueBooleanBytes : FalseBooleanBytes, tag);
         }
 
         public static void WriteInt32ToBuffer(CustomBuffer customBuffer, int value, int tag, bool isTargetCollection) {
@@ -247,6 +247,9 @@ namespace MessageShark {
             if (value == null && !isTargetCollection) return;
             byte[] buffer = null;
             var type = value.GetType();
+            if (type.IsGenericType &&
+                type.GetGenericTypeDefinition() == NullableType)
+                type = type.GetGenericArguments()[0];
             if (type == typeof(string)) {
                 buffer = StringToByteArray((string)value);
             } else if (type == typeof(int)) {

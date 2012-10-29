@@ -61,7 +61,7 @@ namespace MessageShark {
         }
 
         public static bool BytesToBool(byte[] buffer) {
-            return true;
+            return buffer[0] == 1;
         }
 
         public static byte[] BytesToIntegerBytes(byte[] buffer, int size) {
@@ -109,6 +109,9 @@ namespace MessageShark {
         public static object BytesToObject(byte[] buffer) {
             object obj = null;
             var type = TypeIDMapping[ObjectType][buffer[0]];
+            if (type.IsGenericType &&
+                type.GetGenericTypeDefinition() == NullableType)
+                    type = type.GetGenericArguments()[0];
             var buffer1 = new byte[buffer.Length - 1];
             Buffer.BlockCopy(buffer, 1, buffer1, 0, buffer1.Length);
             if (type == typeof(string)) {

@@ -54,7 +54,6 @@ namespace MessageShark
             var valueType = arguments[1];
             if (GenericIDictType.IsAssignableFrom(type.GetGenericTypeDefinition()))
                 type = GenericDictType.MakeGenericType(keyType, valueType);
-
             
             var lengthLocal = il.DeclareLocal(typeof(int));
             var dictLocal = il.DeclareLocal(type);
@@ -116,6 +115,7 @@ namespace MessageShark
             if (GenericIListType.IsAssignableFrom(type.GetGenericTypeDefinition()))
                 type = GenericListType.MakeGenericType(itemType);
 
+
             var lengthLocal = il.DeclareLocal(typeof(int));
             var listLocal = il.DeclareLocal(type);
             var itemLocal = il.DeclareLocal(itemType);
@@ -168,7 +168,7 @@ namespace MessageShark
         static void WriteDeserializerArray(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod,
             int? itemLocalIndex = null) {
             var itemType = type.GetElementType();
-            
+
             var lengthLocal = il.DeclareLocal(typeof(int));
             var arrayLocal = il.DeclareLocal(type);
             var itemLocal = il.DeclareLocal(itemType);
@@ -291,8 +291,9 @@ namespace MessageShark
             } else if (isCollection) {
                 WriteDeserializerClass(typeBuilder, il, type, tag, null, itemLocalIndex: itemLocalIndex);
             } else {
+                var nonNullableType = type.GetNonNullableType();
                 var isTypeEnum = type.IsEnum;
-                var needTypeForReader = PrimitiveReadersWithTypes.Contains(isTypeEnum ? EnumType : type);
+                var needTypeForReader = PrimitiveReadersWithTypes.Contains(isTypeEnum ? EnumType : nonNullableType);
                 il.Emit(OpCodes.Ldarg_2);
                 il.Emit(OpCodes.Ldarg_3);
                 il.Emit(OpCodes.Ldc_I4, 1);
@@ -304,8 +305,11 @@ namespace MessageShark
                 }
                 if (isTypeEnum)
                     il.Emit(OpCodes.Call, PrimitiveReaderMethods[EnumType]);
-                else
-                    il.Emit(OpCodes.Call, PrimitiveReaderMethods[type]);
+                else {
+                    il.Emit(OpCodes.Call, PrimitiveReaderMethods[nonNullableType]);
+                    if (type.IsNullable())
+                        il.Emit(OpCodes.Newobj, type.GetNullableTypeCtor());
+                }
                 if (needTypeForReader) il.Emit(OpCodes.Unbox_Any, type);
                 il.Emit(OpCodes.Stloc, itemLocalIndex);
             }
@@ -429,8 +433,11 @@ namespace MessageShark
                     }
                     if (isTypeEnum)
                         il.Emit(OpCodes.Call, PrimitiveReaderMethods[EnumType]);
-                    else
-                        il.Emit(OpCodes.Call, PrimitiveReaderMethods[propType]);
+                    else {
+                        il.Emit(OpCodes.Call, PrimitiveReaderMethods[propType.GetNonNullableType()]);
+                        if (propType.IsNullable()) 
+                            il.Emit(OpCodes.Newobj, propType.GetNullableTypeCtor());
+                    }
                     if (needTypeForReader) il.Emit(OpCodes.Unbox_Any, propType);
                     il.Emit(isTypeClass ? OpCodes.Callvirt : OpCodes.Call, setMethod);
                 }

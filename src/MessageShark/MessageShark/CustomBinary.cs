@@ -47,11 +47,13 @@ namespace MessageShark {
         }
 
         static int IsBufferedTypeInt(this Type type) {
+            type = type.GetNonNullableType();
             if (type.IsEnum) type = EnumType;
             return BufferedTypes.Contains(type) || !PrimitiveWriterMethods.ContainsKey(type) ? 1 : 0;
         }
 
         static bool IsComplexType(this Type type) {
+            type = type.GetNonNullableType();
             if (type.IsEnum) type = EnumType;
             return
                 !PrimitiveWriterMethods.ContainsKey(type) ||
@@ -59,7 +61,29 @@ namespace MessageShark {
                 || ListType.IsAssignableFrom(type);
         }
 
+        static Type GetNonNullableType(this Type type) {
+            return NonNullableTypes.GetOrAdd(type, key =>
+            {
+                if (key.IsGenericType &&
+                        key.GetGenericTypeDefinition() == NullableType)
+                    return key.GetGenericArguments()[0];
+                return key;
+            });
+        }
 
+        static ConstructorInfo GetNullableTypeCtor(this Type type) {
+            return NullableTypeCtors.GetOrAdd(type, key => key.GetConstructors()[0]);
+        }
+
+        static MethodInfo GetNullableValueMethod(this Type type) {
+            type = type.GetNonNullableType();
+            return NullableMethods.GetOrAdd(type, key => NullableType.MakeGenericType(key).GetProperty("Value").GetGetMethod());
+        }
+
+        static bool IsNullable(this Type type) {
+            return NullableTypes.GetOrAdd(type, key => 
+                key.IsGenericType && key.GetGenericTypeDefinition() == NullableType);
+        }
 
         static IEnumerable<PropertyInfo> GetTypeProperties(Type type) {
             IEnumerable<PropertyInfo> props;
