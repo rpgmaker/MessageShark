@@ -71,13 +71,27 @@ namespace MessageShark {
             });
         }
 
+        public static T GetNullableValue<T>(this Nullable<T> nullable) where T : struct {
+            if (nullable.HasValue) return nullable.Value;
+            return default(T);
+        }
+
         static ConstructorInfo GetNullableTypeCtor(this Type type) {
             return NullableTypeCtors.GetOrAdd(type, key => key.GetConstructors()[0]);
         }
 
+        public static MethodInfo GetNullableHasValueMethod(this Type type) {
+            type = type.GetNonNullableType();
+            return NullableHasValueMethods.GetOrAdd(type, key =>
+                NullableType.MakeGenericType(key).GetProperty("HasValue").GetGetMethod());
+        }
+
         static MethodInfo GetNullableValueMethod(this Type type) {
             type = type.GetNonNullableType();
-            return NullableMethods.GetOrAdd(type, key => NullableType.MakeGenericType(key).GetProperty("Value").GetGetMethod());
+            return NullableMethods.GetOrAdd(type, key =>
+                GetNullableValueMethodMethod.MakeGenericMethod(key)
+                //NullableType.MakeGenericType(key).GetProperty("Value").GetGetMethod()
+                );
         }
 
         static bool IsNullable(this Type type) {

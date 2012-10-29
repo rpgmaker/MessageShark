@@ -43,7 +43,7 @@ namespace MessageShark {
                     WriteSerializerCallClassMethod(typeBuilder, il, itemType, OpCodes.Ldloc, itemLocal.LocalIndex, 1, null,
                         needClassHeader: false);
             } else {
-                WriteSerializerBytesToStream(il, itemType, itemType.IsNullable() ? OpCodes.Ldloca : OpCodes.Ldloc, itemLocal.LocalIndex, 1, null, isTargetCollection: true);
+                WriteSerializerBytesToStream(il, itemType, OpCodes.Ldloc, itemLocal.LocalIndex, 1, null, isTargetCollection: true);
             }
             il.Emit(OpCodes.Ldloc_S, indexLocal.LocalIndex);
             il.Emit(OpCodes.Ldc_I4_1);
@@ -93,7 +93,7 @@ namespace MessageShark {
                 else
                     WriteSerializerCallClassMethod(typeBuilder, il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, needClassHeader: false);
             } else {
-                WriteSerializerBytesToStream(il, listType, listType.IsNullable() ? OpCodes.Ldloca : OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, isTargetCollection: true);
+                WriteSerializerBytesToStream(il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, isTargetCollection: true);
             }
             il.MarkLabel(startEnumeratorLabel);
             il.Emit(OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
@@ -361,21 +361,27 @@ namespace MessageShark {
                 } else {
                     var isTypeEnum = propType.IsEnum;
                     var isNullable = propType.IsNullable();
+                    var nullLocal = isNullable ? il.DeclareLocal(propType) : default(LocalBuilder);
                     il.Emit(OpCodes.Ldarg_1);
                     if (isTypeClass)
                         il.Emit(OpCodes.Ldarg_2);
                     else il.Emit(OpCodes.Ldarga, 2);
                     il.Emit(isTypeClass ? OpCodes.Callvirt : OpCodes.Call, getMethod);
                     if (isNullable) {
-                        var nullLocal = il.DeclareLocal(propType);
                         il.Emit(OpCodes.Stloc, nullLocal.LocalIndex);
-                        il.Emit(OpCodes.Ldloca, nullLocal.LocalIndex);
+                        il.Emit(OpCodes.Ldloc, nullLocal.LocalIndex);
                         il.Emit(OpCodes.Call, propType.GetNullableValueMethod());  
                     }
                     if (isTypeEnum) il.Emit(OpCodes.Box, propType);
                     il.Emit(OpCodes.Ldc_I4, tag);
                     if (isTypeEnum) propType = EnumType;
-                    il.Emit(isNullable ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+                    if (isNullable) {
+                        il.Emit(OpCodes.Ldloca, nullLocal.LocalIndex);
+                        il.Emit(OpCodes.Call, propType.GetNullableHasValueMethod()); 
+                    } 
+                    else {
+                        il.Emit(OpCodes.Ldc_I4_0);
+                    }
                     il.Emit(OpCodes.Call, PrimitiveWriterMethods[propType.GetNonNullableType()]);
                 }
                 tag++;

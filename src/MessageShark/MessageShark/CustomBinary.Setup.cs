@@ -24,6 +24,7 @@ namespace MessageShark
         static readonly ConcurrentDictionary<Type, Type> NonNullableTypes = new ConcurrentDictionary<Type, Type>();
         static readonly ConcurrentDictionary<Type, ConstructorInfo> NullableTypeCtors = new ConcurrentDictionary<Type, ConstructorInfo>();
         static readonly ConcurrentDictionary<Type, MethodInfo> NullableMethods = new ConcurrentDictionary<Type, MethodInfo>();
+        static readonly ConcurrentDictionary<Type, MethodInfo> NullableHasValueMethods = new ConcurrentDictionary<Type, MethodInfo>();
         static readonly ConcurrentDictionary<Type, MethodInfo> PrimitiveWriterMethods = new ConcurrentDictionary<Type, MethodInfo>();
         static readonly ConcurrentDictionary<Type, MethodInfo> PrimitiveReaderMethods = new ConcurrentDictionary<Type, MethodInfo>();
         static readonly ConcurrentDictionary<string, MethodBuilder> WriterMethodBuilders = new ConcurrentDictionary<string, MethodBuilder>();
@@ -75,6 +76,8 @@ namespace MessageShark
 			typeof(IDisposable).GetMethod("Dispose");
         static MethodInfo EncodeLengthMethod =
             CustomBinaryType.GetMethod("EncodeLength", MethodBinding);
+        static MethodInfo GetNullableValueMethodMethod =
+            CustomBinaryType.GetMethod("GetNullableValue", MethodBinding);
         static MethodInfo WriteCollectionHeaderMethod =
             CustomBinaryType.GetMethod("WriteCollectionHeader", MethodBinding);
         static MethodInfo WriteTypeIDForMethod =
