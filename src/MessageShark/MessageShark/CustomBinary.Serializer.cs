@@ -246,7 +246,7 @@ namespace MessageShark {
         public static void WriteObjectToBuffer(CustomBuffer customBuffer, object value, int tag, bool isTargetCollection) {
             if (value == null && !isTargetCollection) return;
             byte[] buffer = null;
-            var type = value.GetType();
+            var type = value == null ? VoidType : value.GetType();
             if (type.IsGenericType &&
                 type.GetGenericTypeDefinition() == NullableType)
                 type = type.GetGenericArguments()[0];
@@ -292,6 +292,8 @@ namespace MessageShark {
                 buffer = TimeSpanToBytes((TimeSpan)value);
             } else if (type == typeof(TimeSpan?)) {
                 buffer = TimeSpanToBytes((value as TimeSpan?) ?? TimeSpan.Zero);
+            } else if (type == VoidType) {
+                buffer = new byte[0];
             }
             var buffer2 = new byte[buffer.Length + 1];
             buffer2[0] = TypeMapping[ObjectType][type];
