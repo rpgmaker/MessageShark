@@ -75,6 +75,8 @@ namespace MessageShark {
         }
 
         public static double BytesToDouble(byte[] buffer) {
+            if (BitConverter.IsLittleEndian)
+                buffer.ReverseEx();
             return BitConverter.ToDouble(buffer, 0);
         }
 
