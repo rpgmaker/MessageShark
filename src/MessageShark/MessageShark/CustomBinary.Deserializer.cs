@@ -75,7 +75,7 @@ namespace MessageShark {
         }
 
         public static double BytesToDouble(byte[] buffer) {
-            return BitConverter.ToDouble(BytesToIntegerBytes(buffer, 8), 0);
+            return BitConverter.ToDouble(buffer, 0);
         }
 
         public static float BytesToFloat(byte[] buffer) {

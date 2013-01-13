@@ -194,9 +194,7 @@ namespace MessageShark {
 
         public static void WriteDoubleToBuffer(CustomBuffer customBuffer, double value, int tag, bool isTargetCollection) {
             if (value == 0d && !isTargetCollection) return;
-            unsafe {
-                WriteUnBufferedBytes(customBuffer, Int64ToBytes(*((long*)&value)), tag);
-            }
+            WriteUnBufferedBytes(customBuffer, BitConverter.GetBytes(value), tag);
         }
 
         public static void WriteCharToBuffer(CustomBuffer customBuffer, char value, int tag, bool isTargetCollection) {
