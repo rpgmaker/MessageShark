@@ -264,7 +264,9 @@ namespace MessageShark {
             } else if (type == typeof(double)) {
                 unsafe {
                     var dValue = (double)value;
-                    buffer = Int64ToBytes(*((long*)&dValue));
+                    buffer = BitConverter.GetBytes(dValue);
+                    if (BitConverter.IsLittleEndian)
+                        buffer.ReverseEx();
                 }
             } else if (type == typeof(short)) {
                 buffer = Int16ToBytes((short)value);
