@@ -120,6 +120,8 @@ namespace MessageShark {
                 obj = BytesToString(buffer1);
             } else if (type == typeof(int)) {
                 obj = BytesToInt32(buffer1);
+            } else if (type == typeof(byte)) {
+                obj = (byte)BytesToInt32(buffer1);
             } else if (type == typeof(DateTime)) {
                 obj = BytesToDateTime(buffer1);
             } else if (type == typeof(bool)) {

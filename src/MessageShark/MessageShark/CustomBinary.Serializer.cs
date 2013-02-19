@@ -255,6 +255,8 @@ namespace MessageShark {
                 buffer = StringToByteArray((string)value);
             } else if (type == typeof(int)) {
                 buffer = Int32ToBytes((int)value);
+            } else if (type == typeof(byte)) {
+                buffer = Int32ToBytes((byte)value);
             } else if (type == typeof(DateTime)) {
                 buffer = DateTimeToByteArray((DateTime)value);
             } else if (type == typeof(bool)) {
