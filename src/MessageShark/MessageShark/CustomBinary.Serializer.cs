@@ -225,7 +225,9 @@ namespace MessageShark {
         }
 
         public static void WriteStringToBuffer(CustomBuffer customBuffer, string value, int tag, bool isTargetCollection) {
-            if (value == null && !isTargetCollection) return;
+            if (value == null && !isTargetCollection) {
+                value = NullString;
+            }
             WriteBufferedBytes(customBuffer, StringToByteArray(value), tag);
         }
 

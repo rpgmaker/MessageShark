@@ -11,7 +11,9 @@ namespace MessageShark {
         }
 
         public static string BytesToString(byte[] buffer) {
-            return System.Text.Encoding.UTF8.GetString(buffer);
+            var str = System.Text.Encoding.UTF8.GetString(buffer);
+            if (str == NullString) str = null;
+            return str;
         }
 
         public static Guid BytesToGuid(byte[] buffer) {

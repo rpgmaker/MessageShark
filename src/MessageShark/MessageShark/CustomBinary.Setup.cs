@@ -17,6 +17,7 @@ namespace MessageShark
 		const int LSB = 0xf;
 		const int MSB = 0xf0;
         const int LENGTH_BUFFER_SIZE = 4;
+        const string NullString = "\0";
 
         static readonly ConcurrentBag<Type> BufferedTypes = new ConcurrentBag<Type>();
         static readonly ConcurrentBag<Type> PrimitiveReadersWithTypes = new ConcurrentBag<Type>();
