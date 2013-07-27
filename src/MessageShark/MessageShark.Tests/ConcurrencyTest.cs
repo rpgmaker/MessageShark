@@ -62,6 +62,16 @@ namespace MessageShark.Tests {
         }
 
         [TestMethod]
+        public void TestSerialize() {
+            var message = new Message() { ID = 10, CreateDate = DateTime.Now, Data = "This is a test", test = new Test() { Int = 100, Str = "Testing", UUID = Guid.NewGuid() } };
+            var buffer = MessageSharkSerializer.Serialize(message);
+            var message2 = MessageSharkSerializer.Deserialize<Message>(buffer);
+            Assert.IsTrue(message.CreateDate == message2.CreateDate);
+            Assert.IsTrue(message.Data == message2.Data);
+            Assert.IsTrue(message.ID == message2.ID);
+        }
+
+        [TestMethod]
         public void TestMultipleSerialization() {
             //MessageSharkSerializer.Build();
             var count = 10000;
