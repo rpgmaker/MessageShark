@@ -241,7 +241,7 @@ namespace MessageShark {
                     type.GetFields(FieldBinding).Union(baseTypes.SelectMany(x => x.GetFields(FieldBinding)))
                     .Where(f => f.GetCustomAttributes(IgnoreAttribute, true).Length < 1)
                     .Where(f => !f.IsInitOnly)
-                    .OrderBy(f => f.MetadataToken);
+                    .OrderBy(f => f.Name);
             }
             return fields;
         }
