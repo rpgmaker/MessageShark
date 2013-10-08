@@ -14,133 +14,6 @@ namespace MessageShark {
 
         private static object _lockObject = new object();
 
-        static void SetMemberValue(ILGenerator il, FieldInfo field) {
-            if (field.IsPrivate) {
-
-                var fieldType = field.FieldType;
-                var type = field.DeclaringType;
-
-                if (fieldType.IsValueType)
-                    il.Emit(OpCodes.Box, fieldType);
-
-                il.Emit(OpCodes.Ldtoken, field);
-                il.Emit(OpCodes.Call,
-                    typeof(FieldInfo).GetMethod("GetFieldFromHandle",
-                    new Type[] { typeof(RuntimeFieldHandle) }));
-
-                il.Emit(OpCodes.Call, SetDynamicMemberValueMethod.MakeGenericMethod(type));
-            } else
-                il.Emit(OpCodes.Stfld, field);
-
-        }
-
-        delegate void SetDynamicMemberDelegate<T>(ref T instance, object value, FieldInfo field);
-
-        public static void SetDynamicMemberValue<T>(ref T instance, object value, FieldInfo field) {
-            
-            (SetMemberValues.GetOrAdd(field, key =>
-            {
-                var fieldType = key.FieldType;
-
-                var type = key.DeclaringType;
-               
-                var meth = new DynamicMethod(key.Name + "_setValue", VoidType, new[] { type.MakeByRefType(), ObjectType, FieldInfoType }, true);
-
-                var il = meth.GetILGenerator();
-
-                il.Emit(OpCodes.Ldarg_0);
-
-                if (type.IsClass) 
-                    il.Emit(OpCodes.Ldind_Ref);
-
-                il.Emit(OpCodes.Ldarg_1);
-
-                if (fieldType.IsValueType)
-                    il.Emit(OpCodes.Unbox_Any, fieldType);
-                else
-                    il.Emit(OpCodes.Castclass, fieldType);
-
-                il.Emit(OpCodes.Stfld, key);
-
-                il.Emit(OpCodes.Ret);
-
-                return meth.CreateDelegate(typeof(SetDynamicMemberDelegate<T>));
-            }) as SetDynamicMemberDelegate<T>)(ref instance, value, field);
-        }
-
-        static void LoadMemberValue(ILGenerator il, MemberInfo member) {
-            var method = member.MemberType == MemberTypes.Method ? member as MethodInfo : null;
-            var field = member.MemberType == MemberTypes.Field ? member as FieldInfo : null;
-            var isPrivate = method != null ? method.IsPrivate : field.IsPrivate;
-            var fieldType = method != null ? method.ReturnType : field.FieldType;
-            var type = member.DeclaringType;
-
-            if (isPrivate && type.IsValueType) 
-                    il.Emit(OpCodes.Box, type);
-
-            if (method != null) {
-                if (isPrivate) {
-                    il.Emit(OpCodes.Ldtoken, method);
-                    il.Emit(OpCodes.Call,
-                        typeof(MethodBase).GetMethod("GetMethodFromHandle",
-                        new Type[] { typeof(RuntimeMethodHandle) }));
-
-                    il.Emit(OpCodes.Call, GetDynamicMemberValueMethod);
-                } else
-                    il.Emit(OpCodes.Callvirt, method);
-            } else {
-                if (isPrivate) {
-                    il.Emit(OpCodes.Ldtoken, field);
-                    il.Emit(OpCodes.Call,
-                        typeof(FieldInfo).GetMethod("GetFieldFromHandle",
-                        new Type[] { typeof(RuntimeFieldHandle) }));
-
-                    il.Emit(OpCodes.Call, GetDynamicMemberValueMethod);
-                } else
-                    il.Emit(OpCodes.Ldfld, field);
-            }
-            if (isPrivate) {
-                if (fieldType.IsValueType)
-                    il.Emit(OpCodes.Unbox_Any, fieldType);
-                else
-                    il.Emit(OpCodes.Castclass, fieldType);
-            }
-        }
-
-        public static object GetDynamicMemberValue(object instance, MemberInfo member) {
-            return GetMemberValues.GetOrAdd(member, key =>
-            {
-                var method = key.MemberType == MemberTypes.Method ? member as MethodInfo : null;
-                var field = key.MemberType == MemberTypes.Field ? member as FieldInfo : null;
-                var memberType = method != null ? method.ReturnType : field.FieldType;
-                var type = member.DeclaringType;
-
-                var meth = new DynamicMethod(key.Name + "_getValue", ObjectType, new[] { ObjectType, MemberInfoType }, true);
-
-                var il = meth.GetILGenerator();
-
-                il.Emit(OpCodes.Ldarg_0);
-
-                if (type.IsValueType)
-                    il.Emit(OpCodes.Unbox_Any, type);
-                 else 
-                    il.Emit(OpCodes.Isinst, type);
-                
-                if (method != null) {
-                    il.Emit(OpCodes.Callvirt, method);
-                } else {
-                    il.Emit(OpCodes.Ldfld, field);
-                }
-                if (memberType.IsValueType)
-                    il.Emit(OpCodes.Box, memberType);
-
-                il.Emit(OpCodes.Ret);
-
-                return meth.CreateDelegate(typeof(Func<object, MemberInfo, object>))
-                    as Func<object, MemberInfo, object>;
-            })(instance, member);
-        }
-
         public static byte[] EncodeLength(int length, int tag) {
             return tag <= 15 ? new byte[] { (byte)((tag << 4) | length) } : new byte[] { (byte)length, (byte)tag };
         }
@@ -217,6 +90,7 @@ namespace MessageShark {
             type = type.GetNonNullableType();
             return NullableMethods.GetOrAdd(type, key =>
                 GetNullableValueMethodMethod.MakeGenericMethod(key)
+                //NullableType.MakeGenericType(key).GetProperty("Value").GetGetMethod()
                 );
         }
 
@@ -225,25 +99,14 @@ namespace MessageShark {
                 key.IsGenericType && key.GetGenericTypeDefinition() == NullableType);
         }
 
-        static IEnumerable<FieldInfo> GetTypeFields(Type type) {
-            IEnumerable<FieldInfo> fields;
-
-            if (!TypeFields.TryGetValue(type, out fields)) {
-
-                var baseTypes = new List<Type>();
-                Type currentBase = type.BaseType;
-                if (currentBase != null) baseTypes.Add(currentBase);
-
-                while (currentBase != null && (currentBase = currentBase.BaseType) != null) 
-                    baseTypes.Add(currentBase);
-                
-                TypeFields[type] = fields =
-                    type.GetFields(FieldBinding).Union(baseTypes.SelectMany(x => x.GetFields(FieldBinding)))
-                    .Where(f => f.GetCustomAttributes(IgnoreAttribute, true).Length < 1)
-                    .Where(f => !f.IsInitOnly)
-                    .OrderBy(f => f.Name);
-            }
-            return fields;
+        static IEnumerable<PropertyInfo> GetTypeProperties(Type type) {
+            IEnumerable<PropertyInfo> props;
+            if (!TypeProperties.TryGetValue(type, out props))
+                TypeProperties[type] = props =
+                    type.GetProperties(PropertyBinding)
+                    .Where(p => p.GetCustomAttributes(IgnoreAttribute, true).Length < 1)
+                    .OrderBy(p => p.Name);
+            return props;
         }
 
         internal static ISerializer<T> GetSerializer<T>() {

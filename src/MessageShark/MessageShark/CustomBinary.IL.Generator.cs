@@ -4,9 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Reflection.Emit;
 using System.Reflection;
-using System.Security.Policy;
-using System.Security;
-using System.Security.Permissions;
 
 namespace MessageShark {
     public static partial class CustomBinary {
@@ -133,7 +130,6 @@ namespace MessageShark {
             }
         }
 
-
         static Type GenerateSerializer(Type objType) {
             Type returnType;
             if (CachedType.TryGetValue(objType, out returnType)) return returnType;
@@ -144,9 +140,6 @@ namespace MessageShark {
                 {
                     Version = new Version(1, 0, 0, 0)
                 }, AssemblyBuilderAccess.RunAndSave);
-            
-            
-
             var module = assembly.DefineDynamicModule(newTypeName + ".dll");
 
             var type = module.DefineType(newTypeName,
