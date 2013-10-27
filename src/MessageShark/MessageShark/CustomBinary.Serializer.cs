@@ -11,7 +11,15 @@ namespace MessageShark {
             return BitConverter.GetBytes(date.Ticks);
         }
 
+        internal static byte[] _demicalMax = new byte[] { 1, 0 };
+
+        internal static byte[] _demicalMin = new byte[] { 1, 1 };
+
+
         public static byte[] DecimalToByteArray(decimal value) {
+            if (value == decimal.MaxValue) return _demicalMax;
+            if (value == decimal.MinValue) return _demicalMin;
+
             using (var ms = new MemoryStream()) {
                 using (var bw = new BinaryWriter(ms)) {
                     bw.Write(value);
@@ -115,7 +123,7 @@ namespace MessageShark {
         }
 
         public static void WriteEnumToBuffer(CustomBuffer customBuffer, Enum value, int tag, bool isTargetCollection) {
-            var enumValue = Convert.ToInt32(value);
+            var enumValue = ((IConvertible)value).ToInt32(null);
             if (enumValue == 0 && !isTargetCollection) return;
             WriteUnBufferedBytes(customBuffer, Int32ToBytes(enumValue), tag);
         }
@@ -194,9 +202,34 @@ namespace MessageShark {
 
         public static void WriteDoubleToBuffer(CustomBuffer customBuffer, double value, int tag, bool isTargetCollection) {
             if (value == 0d && !isTargetCollection) return;
-            var buffer = BitConverter.GetBytes(value);
-            if (BitConverter.IsLittleEndian)
-                buffer.ReverseEx();
+
+            byte[] buffer;
+
+            if (value == double.MaxValue)
+                buffer = _demicalMax;
+            else if (value == double.MinValue)
+                buffer = _demicalMin;
+            else {
+                buffer = BitConverter.GetBytes(value);
+                if (BitConverter.IsLittleEndian) {
+                    var temp = buffer[0];
+                    buffer[0] = buffer[7];
+                    buffer[7] = temp;
+
+                    temp = buffer[1];
+                    buffer[1] = buffer[6];
+                    buffer[6] = temp;
+
+                    temp = buffer[2];
+                    buffer[2] = buffer[5];
+                    buffer[5] = temp;
+
+                    temp = buffer[3];
+                    buffer[3] = buffer[4];
+                    buffer[4] = temp;
+                }
+            }
+
             WriteUnBufferedBytes(customBuffer, buffer, tag);
         }
 
@@ -268,9 +301,31 @@ namespace MessageShark {
             } else if (type == typeof(double)) {
                 unsafe {
                     var dValue = (double)value;
-                    buffer = BitConverter.GetBytes(dValue);
-                    if (BitConverter.IsLittleEndian)
-                        buffer.ReverseEx();
+                   
+                    if (dValue == double.MaxValue)
+                        buffer = _demicalMax;
+                    else if (dValue == double.MinValue)
+                        buffer = _demicalMin;
+                    else {
+                        buffer = BitConverter.GetBytes(dValue);
+                        if (BitConverter.IsLittleEndian) {
+                            var temp = buffer[0];
+                            buffer[0] = buffer[7];
+                            buffer[7] = temp;
+
+                            temp = buffer[1];
+                            buffer[1] = buffer[6];
+                            buffer[6] = temp;
+
+                            temp = buffer[2];
+                            buffer[2] = buffer[5];
+                            buffer[5] = temp;
+
+                            temp = buffer[3];
+                            buffer[3] = buffer[4];
+                            buffer[4] = temp;
+                        }
+                    }
                 }
             } else if (type == typeof(short)) {
                 buffer = Int16ToBytes((short)value);
@@ -294,7 +349,7 @@ namespace MessageShark {
             } else if (type == typeof(Guid)) {
                 buffer = ((Guid)value).ToByteArray();
             } else if (type.IsEnum) {
-                buffer = Int32ToBytes(Convert.ToInt32((Enum)value));
+                buffer = Int32ToBytes(((IConvertible)value).ToInt32(null));
             } else if (type == typeof(TimeSpan)) {
                 buffer = TimeSpanToBytes((TimeSpan)value);
             } else if (type == typeof(TimeSpan?)) {

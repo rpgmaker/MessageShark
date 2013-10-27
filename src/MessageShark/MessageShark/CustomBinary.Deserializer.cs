@@ -21,7 +21,11 @@ namespace MessageShark {
         }
 
         public static decimal BytesToDecimal(byte[] buffer) {
-            if (buffer.Length == 1) return Decimal.Parse(((char)buffer[0]).ToString());
+            //if (buffer.Length == 1) return Decimal.Parse(((char)buffer[0]).ToString());
+            if (buffer.Length == 2) {
+                if (buffer[1] == 1) return decimal.MinValue;
+                else return decimal.MaxValue;
+            }
             using (var ms = new MemoryStream(buffer)) {
                 using (var br = new BinaryReader(ms)) {
                     return br.ReadDecimal(); ;
@@ -77,8 +81,28 @@ namespace MessageShark {
         }
 
         public static double BytesToDouble(byte[] buffer) {
-            if (BitConverter.IsLittleEndian)
-                buffer.ReverseEx();
+            if (buffer.Length == 2) {
+                if (buffer[1] == 1)
+                    return double.MinValue;
+                else return double.MaxValue;
+            }
+            if (BitConverter.IsLittleEndian) {
+                var temp = buffer[0];
+                buffer[0] = buffer[7];
+                buffer[7] = temp;
+
+                temp = buffer[1];
+                buffer[1] = buffer[6];
+                buffer[6] = temp;
+
+                temp = buffer[2];
+                buffer[2] = buffer[5];
+                buffer[5] = temp;
+
+                temp = buffer[3];
+                buffer[3] = buffer[4];
+                buffer[4] = temp;
+            }
             return BitConverter.ToDouble(buffer, 0);
         }
 
