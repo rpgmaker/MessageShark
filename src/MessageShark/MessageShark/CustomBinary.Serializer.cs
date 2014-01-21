@@ -36,7 +36,8 @@ namespace MessageShark {
         }
 
         public static byte[] Int16ToBytes(short value) {
-            if (value <= 255) return new byte[] { (byte)value };
+            if (value >= 0 && value <= 255) return new byte[] { (byte)value };
+            else if (value < 0) return BitConverter.GetBytes(value);
             byte[] buffer = new byte[2];
             var index = 0;
             var sValue = 0;
@@ -52,7 +53,8 @@ namespace MessageShark {
         }
 
         public static byte[] Int32ToBytes(int value) {
-            if (value <= 255) return new byte[] { (byte)value };
+            if (value >= 0 && value <= 255) return new byte[] { (byte)value };
+            else if (value < 0) return BitConverter.GetBytes(value);
             byte[] buffer = new byte[4];
             var index = 0;
             var sValue = 0;
@@ -72,7 +74,8 @@ namespace MessageShark {
         }
 
         public static byte[] Int64ToBytes(long value) {
-            if (value <= 255) return new byte[] { (byte)value };
+            if (value >= 0 && value <= 255) return new byte[] { (byte)value };
+            else if (value < 0) return BitConverter.GetBytes(value);
             const int msb = 0xff;
             byte[] buffer = new byte[8];
             var index = 0;
