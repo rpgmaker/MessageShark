@@ -50,6 +50,7 @@
     <Compile Include="CustomBinary.IL.Serialize.cs" />
     <Compile Include="CustomBinary.Serializer.cs" />
     <Compile Include="CustomBinary.Setup.cs" />
+    <Compile Include="InternalWrapper.cs" />
     <Compile Include="MessageSharkIgnoreAttribute.cs" />
     <Compile Include="MessageSharkIncludeAttribute.cs" />
     <Compile Include="CustomBuffer.cs" />

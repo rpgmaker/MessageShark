@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Collections;
 
 namespace MessageShark {
     public static class MessageSharkSerializer {
@@ -12,7 +13,15 @@ namespace MessageShark {
         /// <param name="value"></param>
         /// <returns></returns>
         public static byte[] Serialize<T>(T value) {
+            if (value is ICollection)
+                return CustomBinary.GetSerializer<InternalWrapper<T>>().Serialize(new InternalWrapper<T> { Value = value });
             return CustomBinary.GetSerializer<T>().Serialize(value);
+        }
+
+        private static bool IsCollectionAssignable(this Type type) {
+            return CustomBinary.AssignableTypes.GetOrAdd(type, key => {
+                return CustomBinary.ICollectionType.IsAssignableFrom(key);
+            });
         }
 
         /// <summary>
@@ -20,6 +29,10 @@ namespace MessageShark {
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static void Compile<T>() {
+            if (typeof(T).IsCollectionAssignable()) {
+                CustomBinary.GetSerializer<InternalWrapper<T>>();
+                return;
+            }
             CustomBinary.GetSerializer<T>();
         }
 
@@ -30,6 +43,10 @@ namespace MessageShark {
         /// <param name="buffer"></param>
         /// <returns></returns>
         public static T Deserialize<T>(byte[] buffer) {
+            if (typeof(T).IsCollectionAssignable()) {
+                var obj = CustomBinary.GetSerializer<InternalWrapper<T>>().Deserialize(buffer);
+                return obj.Value;
+            }
             return CustomBinary.GetSerializer<T>().Deserialize(buffer);
         }
 

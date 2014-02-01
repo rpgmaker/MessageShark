@@ -21,6 +21,7 @@ namespace MessageShark
 
         static readonly ConcurrentBag<Type> BufferedTypes = new ConcurrentBag<Type>();
         static readonly ConcurrentBag<Type> PrimitiveReadersWithTypes = new ConcurrentBag<Type>();
+        internal static readonly ConcurrentDictionary<Type, bool> AssignableTypes = new ConcurrentDictionary<Type, bool>();
         static readonly ConcurrentDictionary<Type, bool> NullableTypes = new ConcurrentDictionary<Type, bool>();
         static readonly ConcurrentDictionary<Type, Type> NonNullableTypes = new ConcurrentDictionary<Type, Type>();
         static readonly ConcurrentDictionary<Type, ConstructorInfo> NullableTypeCtors = new ConcurrentDictionary<Type, ConstructorInfo>();
@@ -108,7 +109,7 @@ namespace MessageShark
         static readonly byte[] TrueBooleanBytes = new byte[] { 1 };
         static readonly byte[] FalseBooleanBytes = new byte[] { 0 };
         static readonly Type[] CtorCapacityTypes = new Type[] { typeof(int) };
-        static readonly Type ICollectionType = typeof(ICollection);
+        internal static readonly Type ICollectionType = typeof(ICollection);
 		static readonly Type DictType = typeof(IDictionary);
 		static readonly Type ListType = typeof(IList);
         static readonly Type NullableType = typeof(Nullable<>);
