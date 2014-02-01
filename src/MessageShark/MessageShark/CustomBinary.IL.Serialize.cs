@@ -57,34 +57,72 @@ namespace MessageShark {
             il.Emit(OpCodes.Blt, endLabel);
         }
 
+        static Type FindGenericType(Type type) {
+            return InterfaceTypes.GetOrAdd(type, key =>
+            {
+                Type[] genericTypes = type.GetInterfaces();
+
+                if (genericTypes != null) {
+                    for (int i = 0; i < genericTypes.Length; i++) {
+                        var genericType = genericTypes[i];
+                        if (genericType.IsGenericType && GenericIListType.IsAssignableFrom(genericType.GetGenericTypeDefinition()))
+                            return genericType.GetGenericArguments()[0];
+                    }
+                }
+                return ObjectType;
+            });
+        }
+
+        static Type GetGenericListType(Type type, out bool useGenericArguments) {
+            useGenericArguments = false;
+            if (type.IsGenericType) {
+                Type[] genericTypes = type.GetGenericArguments();
+
+                if (genericTypes != null && genericTypes.Length > 0) {
+                    useGenericArguments = true;
+                    return genericTypes[0];
+                }
+            }
+            return CustomBinary.FindGenericType(type);
+        }
+
         static void WriteSerializerList(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo valueMethod,
             int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
-            var arguments = type.GetGenericArguments();
-            var listType = arguments.Length > 0 ? arguments[0] : ObjectType;
+            //var arguments = type.GetGenericArguments();
+            bool useGenericArguments;
+            var listType = GetGenericListType(type, out useGenericArguments);//arguments.Length > 0 ? arguments[0] : ObjectType;
             var genericListType = GenericListType.MakeGenericType(listType);
-            var enumeratorType = GenericListEnumerator.MakeGenericType(listType);
+            var iEnumerableType = !useGenericArguments ? GenericIEnumeratorType.MakeGenericType(listType) : null;
+            var hasIEnumerable = iEnumerableType != null;
+            var enumeratorType = hasIEnumerable ? iEnumerableType : GenericListEnumerator.MakeGenericType(listType);
             var enumeratorLocal = il.DeclareLocal(enumeratorType);
+            var moveNextType = hasIEnumerable ? EnumeratorType : enumeratorType;
             var entryLocal = il.DeclareLocal(listType);
             var startEnumeratorLabel = il.DefineLabel();
             var moveNextLabel = il.DefineLabel();
             var endEnumeratorLabel = il.DefineLabel();
             
             if (valueLocalIndex != null) il.Emit(valueLocalOpCode.Value, valueLocalIndex.Value);
+
+            if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+
             if (valueMethod != null) {
-                if (valueLocalIndex == null) il.Emit(OpCodes.Ldarg_2);
+                
                 il.Emit(OpCodes.Callvirt, valueMethod);
             }
 
             if (type.Name == "IList`1") il.Emit(OpCodes.Castclass, genericListType);
-            il.Emit(OpCodes.Callvirt, genericListType.GetMethod("GetEnumerator"));
+            il.Emit(OpCodes.Callvirt, (hasIEnumerable ? type : genericListType).GetMethod("GetEnumerator"));
             il.Emit(OpCodes.Stloc_S, enumeratorLocal.LocalIndex);
             il.BeginExceptionBlock();
             il.Emit(OpCodes.Br, startEnumeratorLabel);
             il.MarkLabel(moveNextLabel);
-            il.Emit(OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
-            il.Emit(OpCodes.Call,
+            il.Emit(hasIEnumerable ? OpCodes.Ldloc : OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
+            il.Emit(hasIEnumerable ? OpCodes.Callvirt : OpCodes.Call,
                 enumeratorLocal.LocalType.GetProperty("Current")
                 .GetGetMethod());
+
+
             il.Emit(OpCodes.Stloc, entryLocal.LocalIndex);
             if (listType.IsComplexType()) {
                 if (listType.IsCollectionType())
@@ -96,13 +134,14 @@ namespace MessageShark {
                 WriteSerializerBytesToStream(il, listType, OpCodes.Ldloc, entryLocal.LocalIndex, 1, null, isTargetCollection: true);
             }
             il.MarkLabel(startEnumeratorLabel);
-            il.Emit(OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
-            il.Emit(OpCodes.Call, enumeratorType.GetMethod("MoveNext", MethodBinding));
+            il.Emit(hasIEnumerable ? OpCodes.Ldloc : OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
+            il.Emit(hasIEnumerable ? OpCodes.Callvirt : OpCodes.Call, moveNextType.GetMethod("MoveNext", MethodBinding));
             il.Emit(OpCodes.Brtrue, moveNextLabel);
             il.Emit(OpCodes.Leave, endEnumeratorLabel);
             il.BeginFinallyBlock();
-            il.Emit(OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
-            il.Emit(OpCodes.Constrained, enumeratorLocal.LocalType);
+            il.Emit(hasIEnumerable ? OpCodes.Ldloc : OpCodes.Ldloca_S, enumeratorLocal.LocalIndex);
+            if (!hasIEnumerable)
+                il.Emit(OpCodes.Constrained, enumeratorLocal.LocalType);
             il.Emit(OpCodes.Callvirt, IDisposableDisposeMethod);
             il.EndExceptionBlock();
             il.MarkLabel(endEnumeratorLabel);

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Data;
 
 namespace MessageShark.Tests {
     /// <summary>
@@ -62,8 +63,25 @@ namespace MessageShark.Tests {
         }
 
         [TestMethod]
+        public void TestFieldCollection() {
+            var tbl = new Table();
+            tbl.Name = "table1";
+            tbl.Fields.Add(new Field { Name = "myField", DataType = DbType.Byte });
+
+            byte[] buf = MessageSharkSerializer.Serialize<Table>(tbl);
+
+            var tbl2 = MessageSharkSerializer.Deserialize<Table>(buf);
+        }
+
+
+        [TestMethod]
         public void TestSerialize() {
             var message = new Message() { ID = 10, CreateDate = DateTime.Now, Data = "This is a test", test = new Test() { Int = 100, Str = "Testing", UUID = Guid.NewGuid() } };
+            message.Tests = new List<Test> { 
+                new Test() { Int = 100, Str = "Testing", UUID = Guid.NewGuid() },
+                new Test() { Int = 100, Str = "Testing2", UUID = Guid.NewGuid() },
+                new Test() { Int = 100, Str = "Testing3", UUID = Guid.NewGuid() }
+            };
             var buffer = MessageSharkSerializer.Serialize(message);
             var message2 = MessageSharkSerializer.Deserialize<Message>(buffer);
             Assert.IsTrue(message.CreateDate == message2.CreateDate);

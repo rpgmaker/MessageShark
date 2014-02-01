@@ -16,5 +16,6 @@ namespace MessageShark.Tests {
         public DateTime CreateDate { get; set; }
         public string Data { get; set; }
         public Test test { get; set; }
+        public List<Test> Tests { get; set; }
     }
 }

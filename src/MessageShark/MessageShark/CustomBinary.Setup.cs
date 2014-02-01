@@ -35,6 +35,7 @@ namespace MessageShark
 		static readonly ConcurrentDictionary<Type, Func<object>> DictFuncNew = new ConcurrentDictionary<Type, Func<object>>();
         static readonly ConcurrentDictionary<Type, Dictionary<byte, Type>> TypeIDMapping = new ConcurrentDictionary<Type, Dictionary<byte, Type>>();
         static readonly ConcurrentDictionary<Type, Dictionary<Type, byte>> TypeMapping = new ConcurrentDictionary<Type, Dictionary<Type, byte>>();
+        static readonly ConcurrentDictionary<Type, Type> InterfaceTypes = new ConcurrentDictionary<Type, Type>();
 		
 		const BindingFlags PropertyBinding = BindingFlags.Instance | BindingFlags.Public;
 
@@ -112,6 +113,8 @@ namespace MessageShark
 		static readonly Type ListType = typeof(IList);
         static readonly Type NullableType = typeof(Nullable<>);
 		static readonly Type GenericIListType = typeof(IList<>);
+        static readonly Type GenericIEnumeratorType = typeof(IEnumerator<>);
+        static readonly Type EnumeratorType = typeof(IEnumerator);
         static readonly Type GenericListType = typeof(List<>);
         static readonly Type VoidType = typeof(void);
 		static readonly Type GenericIDictType = typeof(IDictionary<,>);

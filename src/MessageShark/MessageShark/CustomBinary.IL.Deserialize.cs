@@ -111,8 +111,9 @@ namespace MessageShark
 
         static void WriteDeserializerList(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod,
             int? itemLocalIndex = null) {
-            var itemType = type.GetGenericArguments()[0];
-            if (GenericIListType.IsAssignableFrom(type.GetGenericTypeDefinition()))
+            bool useGenericArguments;
+            var itemType = GetGenericListType(type, out useGenericArguments);//type.GetGenericArguments()[0];
+            if (useGenericArguments && GenericIListType.IsAssignableFrom(type.GetGenericTypeDefinition()))
                 type = GenericListType.MakeGenericType(itemType);
 
 
@@ -123,16 +124,27 @@ namespace MessageShark
             var startLabel = il.DefineLabel();
             var endLabel = il.DefineLabel();
 
+            var hasLocalList = setMethod != null || itemLocalIndex != null;
+
             il.Emit(OpCodes.Ldarg_2);
             il.Emit(OpCodes.Ldarg_3);
             il.Emit(OpCodes.Ldc_I4, tag);
             il.Emit(OpCodes.Call, GetCollectionLengthMethod);
             il.Emit(OpCodes.Stloc, lengthLocal);
 
-            il.Emit(OpCodes.Ldloc, lengthLocal.LocalIndex);
-            il.Emit(OpCodes.Newobj, type.GetConstructor(CtorCapacityTypes));
-            il.Emit(OpCodes.Stloc, listLocal.LocalIndex);
 
+            if (hasLocalList) {
+                var lengthCtor = type.GetConstructor(CtorCapacityTypes);
+
+                if (lengthCtor != null) {
+                    il.Emit(OpCodes.Ldloc, lengthLocal.LocalIndex);
+                    il.Emit(OpCodes.Newobj, lengthCtor);
+                    il.Emit(OpCodes.Stloc, listLocal.LocalIndex);
+                } else {
+                    il.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
+                    il.Emit(OpCodes.Stloc, listLocal.LocalIndex);
+                }
+            }
 
             il.Emit(OpCodes.Ldc_I4_0);
             il.Emit(OpCodes.Stloc, indexLocal.LocalIndex);
@@ -140,10 +152,15 @@ namespace MessageShark
             il.MarkLabel(endLabel);
 
             WriteDeserializerReadValue(typeBuilder, il, itemType, 1, itemLocal.LocalIndex);
+
+            if (hasLocalList)
+                il.Emit(OpCodes.Ldloc, listLocal.LocalIndex);
+            else
+                il.Emit(OpCodes.Ldarg_1);
             
-            il.Emit(OpCodes.Ldloc, listLocal.LocalIndex);
+            
             il.Emit(OpCodes.Ldloc, itemLocal.LocalIndex);
-            il.Emit(OpCodes.Callvirt, type.GetMethod("Add"));
+            il.Emit(OpCodes.Callvirt, type.GetMethod("Add", new[] { itemType }));
 
 
             il.Emit(OpCodes.Ldloc, indexLocal.LocalIndex);
@@ -155,11 +172,11 @@ namespace MessageShark
             il.Emit(OpCodes.Ldloc, lengthLocal.LocalIndex);
             il.Emit(OpCodes.Blt, endLabel);
 
-            if (itemLocalIndex == null) {
+            if (setMethod != null && itemLocalIndex == null) {
                 il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldloc, listLocal.LocalIndex);
                 il.Emit(OpCodes.Callvirt, setMethod);
-            } else {
+            } else if (itemLocalIndex != null) {
                 il.Emit(OpCodes.Ldloc, listLocal.LocalIndex);
                 il.Emit(OpCodes.Stloc, itemLocalIndex.Value);
             }
