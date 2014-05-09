@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<package xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"> 
+  <metadata xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd"> 
+    <id>MessageShark</id> 
+    <title>MessageShark</title>
+    <tags>Binary binary serializer fast compression messageshark deserializer serialize deserialize</tags>
+    <version>1.0.0</version> 
+    <authors>TJ Bakre</authors>
+    <description>Alternative binary serializer to protobuf-net and it has comparable speed and size.</description> 
+    <language>en-US</language>
+    <licenseUrl>https://github.com/rpgmaker/MessageShark/blob/master/license.txt</licenseUrl>
+    <projectUrl>https://github.com/rpgmaker/MessageShark</projectUrl>
+    <iconUrl>http://iomegatrix.com/Pictures/logo.jpg</iconUrl>
+  </metadata> 
+</package>
