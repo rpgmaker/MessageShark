@@ -49,11 +49,31 @@ namespace MessageShark
 
         static void WriteDeserializerDictionary(TypeBuilder typeBuilder, ILGenerator il, Type type, int tag, MethodInfo setMethod,
             int? itemLocalIndex = null) {
-            var arguments = type.GetGenericArguments();
-            var keyType = arguments[0];
-            var valueType = arguments[1];
-            if (GenericIDictType.IsAssignableFrom(type.GetGenericTypeDefinition()))
-                type = GenericDictType.MakeGenericType(keyType, valueType);
+            
+            var keyType = typeof(object);
+            var valueType = typeof(object);
+
+            if (type.ContainsGenericParameters) {
+                var arguments = type.GetGenericArguments();
+                keyType = arguments[0];
+                valueType = arguments[1];
+
+                if (GenericIDictType.IsAssignableFrom(type.GetGenericTypeDefinition()))
+                    type = GenericDictType.MakeGenericType(keyType, valueType);
+            } else {
+                // Custom IDictionary implementation
+                var interfaces = type.GetInterfaces();
+                for (int i = 0; i < interfaces.Length; i++) {
+                    var @interface = interfaces[i];
+                    if (@interface.IsGenericType && @interface.GetGenericTypeDefinition() == GenericIDictType) {
+                        var arguments = @interface.GetGenericArguments();
+                        keyType = arguments[0];
+                        valueType = arguments[1];
+                        break;
+                    }
+                }
+            }
+
             
             var lengthLocal = il.DeclareLocal(typeof(int));
             var dictLocal = il.DeclareLocal(type);

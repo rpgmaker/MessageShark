@@ -73,6 +73,14 @@ namespace MessageShark.Tests {
             var tbl2 = MessageSharkSerializer.Deserialize<Table>(buf);
         }
 
+        [TestMethod]
+        public void SerializeDictionary() {
+            Dictionary<string, string> whee = new Dictionary<string, string>();
+            whee.Add("k", "v");
+            var buffer = MessageSharkSerializer.Serialize(whee);
+            var dict = MessageSharkSerializer.Deserialize<Dictionary<string, string>>(buffer);
+        }
+
 
         [TestMethod]
         public void TestSerialize() {

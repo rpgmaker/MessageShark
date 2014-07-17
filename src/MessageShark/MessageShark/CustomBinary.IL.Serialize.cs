@@ -149,9 +149,29 @@ namespace MessageShark {
 
         static void WriteSerializerDictionary(TypeBuilder typeBuilder, ILGenerator il, Type type, MethodInfo getValueMethod,
             int? valueLocalIndex = null, OpCode? valueLocalOpCode = null) {
-            var arguments = type.GetGenericArguments();
-            var keyType = arguments[0];
-            var valueType = arguments[1];
+
+            var keyType = typeof(object);
+            var valueType = typeof(object);
+
+            if (type.ContainsGenericParameters) {
+                var arguments = type.GetGenericArguments();
+                keyType = arguments[0];
+                valueType = arguments[1];
+            } else {
+                // Custom IDictionary implementation
+                var interfaces = type.GetInterfaces();
+                for (int i = 0; i < interfaces.Length; i++) {
+                    var @interface = interfaces[i];
+                    if (@interface.IsGenericType && @interface.GetGenericTypeDefinition() == GenericIDictType) {
+                        var arguments = @interface.GetGenericArguments();
+                        keyType = arguments[0];
+                        valueType = arguments[1];
+                        break;
+                    }
+                }
+            }
+
+
             var keyValuePairType = GenericKeyValuePairType.MakeGenericType(keyType, valueType);
             var enumeratorType = GenericDictionaryEnumerator.MakeGenericType(keyType, valueType);
             var enumeratorLocal = il.DeclareLocal(enumeratorType);
@@ -166,9 +186,12 @@ namespace MessageShark {
                 il.Emit(OpCodes.Callvirt, getValueMethod);
             }
 
-            il.Emit(OpCodes.Callvirt,
-                GenericDictType.MakeGenericType(keyType, valueType)
-                .GetMethod("GetEnumerator"));
+            if (type.ContainsGenericParameters)
+                il.Emit(OpCodes.Callvirt, GenericDictType.MakeGenericType(keyType, valueType).GetMethod("GetEnumerator"));
+            else
+                il.Emit(OpCodes.Callvirt, type.GetMethod("GetEnumerator"));
+
+
             il.Emit(OpCodes.Stloc_S, enumeratorLocal.LocalIndex);
             il.BeginExceptionBlock();
             il.Emit(OpCodes.Br, startEnumeratorLabel);
