@@ -1,6 +1,12 @@
 MessageShark is alternative binary serializer to protobuf-net and it has comparable speed and size.
 
-MessageShark is designed to work on only properties at this moment. It would be updated to work on fields later
+MessageShark current commit is designed to work on only properties at this moment. 
+
+
+
+If you like to be able to do serialization at the field level which include private/public fields, you can use this commit: 
+
+https://github.com/rpgmaker/MessageShark/commit/0ef6e788676b7fc52f169073752bb709048a329a
 
 Refer to samples folder for comparison between protobuf-net and MessageShark
 
