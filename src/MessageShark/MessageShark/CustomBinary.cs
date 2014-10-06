@@ -109,16 +109,12 @@ namespace MessageShark {
             return props;
         }
 
+        private static class MessageSharkCachedSerializer<T> {
+            public static readonly ISerializer<T> Serializer = (ISerializer<T>)Activator.CreateInstance(GenerateSerializer(typeof(T)));
+        }
+
         internal static ISerializer<T> GetSerializer<T>() {
-            var type = typeof(T);
-            var serializer = default(object);
-            if (!SerializerTypes.TryGetValue(type, out serializer)) {
-                lock (_lockObject) {
-                    var serializerType = GenerateSerializer(type);
-                    serializer = SerializerTypes[type] = Activator.CreateInstance(serializerType);
-                }
-            }
-            return ((ISerializer<T>)serializer);
+            return MessageSharkCachedSerializer<T>.Serializer;
         }
         
         public static bool IsNextTagForPropertyTag(int tag, byte[] buffer, int startIndex) {

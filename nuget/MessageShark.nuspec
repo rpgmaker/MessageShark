@@ -4,7 +4,7 @@
     <id>MessageShark</id> 
     <title>MessageShark</title>
     <tags>Binary binary serializer fast compression messageshark deserializer serialize deserialize</tags>
-    <version>1.0.0</version> 
+    <version>1.0.1</version> 
     <authors>TJ Bakre</authors>
     <description>Alternative binary serializer to protobuf-net and it has comparable speed and size.</description> 
     <language>en-US</language>
