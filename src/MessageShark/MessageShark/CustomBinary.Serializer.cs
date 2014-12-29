@@ -29,6 +29,8 @@ namespace MessageShark {
         }
 
         public static byte[] StringToByteArray(string value) {
+            if (value == null)
+                return new byte[0];
             var size = UTF8.GetByteCount(value);
             var buffer = new byte[size];
             UTF8.GetBytes(value, 0, value.Length, buffer, 0);
