@@ -105,6 +105,8 @@ namespace MessageShark
             CustomBinaryType.GetMethod("GetCollectionLength", MethodBinding);
         static MethodInfo MoveToNextBytesMethod =
             CustomBinaryType.GetMethod("MoveToNextBytes", MethodBinding);
+        static MethodInfo ReadFullyMethod =
+            CustomBinaryType.GetMethod("ReadFully", MethodBinding);
 
 
         static readonly byte[] TypeIDByteArray = new byte[1];

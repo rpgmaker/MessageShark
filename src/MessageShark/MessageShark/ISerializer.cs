@@ -9,5 +9,6 @@ namespace MessageShark {
         byte[] Serialize(T obj);
         T Deserialize(byte[] buffer);
         void Serialize(T obj, Stream stream);
+        T Deserialize(Stream stream);
     }
 }

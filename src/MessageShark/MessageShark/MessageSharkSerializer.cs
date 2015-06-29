@@ -71,8 +71,13 @@ namespace MessageShark {
 
         delegate void SerializeStreamWithTypeDelegate(object value, Stream stream);
 
+        delegate object DeserializeStreamWithTypeDelegate(Stream stream, int _);
+
         static ConcurrentDictionary<string, DeserializeWithTypeDelegate> _deserializeWithTypes =
             new ConcurrentDictionary<string, DeserializeWithTypeDelegate>();
+
+        static ConcurrentDictionary<string, DeserializeStreamWithTypeDelegate> _deserializeStreamWithTypes =
+            new ConcurrentDictionary<string, DeserializeStreamWithTypeDelegate>();
 
         static ConcurrentDictionary<Type, SerializeWithTypeDelegate> _serializeWithTypes =
             new ConcurrentDictionary<Type, SerializeWithTypeDelegate>();
@@ -205,6 +210,42 @@ namespace MessageShark {
             })(value, 0);
         }
 
+
+        /// <summary>
+        /// Deserialize to type using specified stream
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static object Deserialize(Type type, Stream stream) {
+            return _deserializeStreamWithTypes.GetOrAdd(type.FullName, _ => {
+
+                var name = String.Concat(DeserializeStr, StreamStr, type.FullName);
+                var method = new DynamicMethod(name, CustomBinary.ObjectType, new[] { CustomBinary.StreamType, CustomBinary.IntType }, restrictedSkipVisibility: true);
+
+                var il = method.GetILGenerator();
+                var genericMethod = _getSerializerMethod.MakeGenericMethod(type);
+                var genericType = _messageSharkSerializerType.MakeGenericType(type);
+
+                var genericDeserialize = genericType.GetMethod(DeserializeStr, new[] { CustomBinary.StreamType });
+
+                il.Emit(OpCodes.Call, genericMethod);
+
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Callvirt, genericDeserialize);
+
+                if (type.IsClass)
+                    il.Emit(OpCodes.Isinst, type);
+                else {
+                    il.Emit(OpCodes.Box, type);
+                }
+
+                il.Emit(OpCodes.Ret);
+
+                return method.CreateDelegate(typeof(DeserializeStreamWithTypeDelegate)) as DeserializeStreamWithTypeDelegate;
+            })(stream, 0);
+        }
+
         /// <summary>
         /// Deserialize buffer into T type
         /// </summary>
@@ -217,6 +258,20 @@ namespace MessageShark {
                 return obj.Value;
             }
             return CustomBinary.GetSerializer<T>().Deserialize(buffer);
+        }
+
+        /// <summary>
+        /// Deserialize stream into T type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static T Deserialize<T>(Stream stream) {
+            if (typeof(T).IsCollectionAssignable()) {
+                var obj = CustomBinary.GetSerializer<InternalWrapper<T>>().Deserialize(stream);
+                return obj.Value;
+            }
+            return CustomBinary.GetSerializer<T>().Deserialize(stream);
         }
 
         /// <summary>

@@ -116,6 +116,20 @@ namespace MessageShark {
         internal static ISerializer<T> GetSerializer<T>() {
             return MessageSharkCachedSerializer<T>.Serializer;
         }
+
+        public static byte[] ReadFully(Stream input) {
+            var m = input as MemoryStream;
+            if (m != null)
+                return m.ToArray();
+            byte[] buffer = new byte[16 * 1024];
+            using (MemoryStream ms = new MemoryStream()) {
+                int read;
+                while ((read = input.Read(buffer, 0, buffer.Length)) > 0) {
+                    ms.Write(buffer, 0, read);
+                }
+                return ms.ToArray();
+            }
+        }
         
         public static bool IsNextTagForPropertyTag(int tag, byte[] buffer, int startIndex) {
             if (startIndex > buffer.Length - 1) return false;

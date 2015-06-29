@@ -55,6 +55,21 @@ namespace MessageShark.Tests {
         #endregion
 
         [TestMethod]
+        public void ShouldDeserializeTOMessageFromMemoryStream() {
+            byte[] buffer = null;
+            using (var ms = new MemoryStream()) {
+                var message = new Message() { ID = 10, CreateDate = DateTime.Now, Data = "This is a test", test = new Test() { Int = 100, Str = "Testing", UUID = Guid.NewGuid() } };
+                MessageSharkSerializer.Serialize(message, ms);
+                buffer = ms.ToArray();
+            }
+
+            using (var ms2 = new MemoryStream(buffer)) {
+                ms2.Seek(0, SeekOrigin.Begin);
+                var msg = MessageSharkSerializer.Deserialize(typeof(Message), ms2);
+            }
+        }
+
+        [TestMethod]
         public void ShouldSerializeMessageToMemoryStream() {
             using (var ms = new MemoryStream()) {
                 var message = new Message() { ID = 10, CreateDate = DateTime.Now, Data = "This is a test", test = new Test() { Int = 100, Str = "Testing", UUID = Guid.NewGuid() } };

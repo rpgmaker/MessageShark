@@ -62,7 +62,7 @@ namespace MessageShark {
             il.Emit(OpCodes.Callvirt, method);
         }
 
-        static void GenerateDeserializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int valueLocalIndex, int startIndexLocalIndex) {
+        static void GenerateDeserializerCallClassMethod(TypeBuilder typeBuilder, ILGenerator il, Type type, int valueLocalIndex, int startIndexLocalIndex, bool useStream = false) {
             MethodBuilder method;
             var hasTypeMapping = TypeMapping.ContainsKey(type);
             if (hasTypeMapping) {
@@ -74,7 +74,13 @@ namespace MessageShark {
                 var branchLabel = needBranchLabel ? il.DefineLabel() : DefaultLabel;
                 var valueTypeLocal = il.DeclareLocal(TypeType);
 
-                il.Emit(OpCodes.Ldarg_1);
+                if (useStream) {
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Call, ReadFullyMethod);
+                }else
+                    il.Emit(OpCodes.Ldarg_1);
+
+
                 il.Emit(OpCodes.Ldtoken, type);
                 il.Emit(OpCodes.Call, GetTypeFromHandleMethod);
                 il.Emit(OpCodes.Ldloca_S, startIndexLocalIndex);
@@ -102,7 +108,11 @@ namespace MessageShark {
                     if (mapType.IsClass)
                         il.Emit(OpCodes.Castclass, mapType);
                     else il.Emit(OpCodes.Unbox_Any, mapType);
-                    il.Emit(OpCodes.Ldarg_1);
+                    if (useStream) {
+                        il.Emit(OpCodes.Ldarg_1);
+                        il.Emit(OpCodes.Call, ReadFullyMethod);
+                    } else
+                        il.Emit(OpCodes.Ldarg_1);
                     il.Emit(OpCodes.Ldloca_S, startIndexLocalIndex);
                     il.Emit(OpCodes.Callvirt, method);
 
@@ -124,7 +134,11 @@ namespace MessageShark {
                 if (isTypeClass)
                     il.Emit(OpCodes.Ldloc, valueLocalIndex);
                 else il.Emit(OpCodes.Ldloca, valueLocalIndex);
-                il.Emit(OpCodes.Ldarg_1);
+                if (useStream) {
+                    il.Emit(OpCodes.Ldarg_1);
+                    il.Emit(OpCodes.Call, ReadFullyMethod);
+                } else
+                    il.Emit(OpCodes.Ldarg_1);
                 il.Emit(OpCodes.Ldloca_S, startIndexLocalIndex);
                 il.Emit(OpCodes.Callvirt, method);
             }
@@ -153,11 +167,15 @@ namespace MessageShark {
             var methodDeserialize = type.DefineMethod("ISerializer.Deserialize", MethodAttribute,
                 objType, new[] { ByteArrayType });
 
+            var methodDeserializeStream = type.DefineMethod("ISerializer.Deserialize", MethodAttribute,
+                objType, new[] { StreamType });
+
             var methodSerializeStream = type.DefineMethod("ISerializer.Serialize", MethodAttribute,
                 VoidType, new[] { objType, StreamType });
 
             var methodSerializeIL = methodSerialize.GetILGenerator();
             var methodDeserializeIL = methodDeserialize.GetILGenerator();
+            var methodDeserializeStreamIL = methodDeserializeStream.GetILGenerator();
             var methodSerializeStreamIL = methodSerializeStream.GetILGenerator();
 
             var bufferLocal = methodSerializeIL.DeclareLocal(BufferStreamType);
@@ -167,6 +185,12 @@ namespace MessageShark {
             var startIndexLocal = methodDeserializeIL.DeclareLocal(typeof(int));
             methodDeserializeIL.Emit(OpCodes.Ldc_I4_0);
             methodDeserializeIL.Emit(OpCodes.Stloc, startIndexLocal.LocalIndex);
+
+
+            var returnLocalStream = methodDeserializeStreamIL.DeclareLocal(objType);
+            var startIndexLocalStream = methodDeserializeStreamIL.DeclareLocal(typeof(int));
+            methodDeserializeStreamIL.Emit(OpCodes.Ldc_I4_0);
+            methodDeserializeStreamIL.Emit(OpCodes.Stloc, startIndexLocalStream.LocalIndex);
 
             //Serialize
             methodSerializeIL.Emit(OpCodes.Newobj, BufferStreamCtor);
@@ -196,11 +220,21 @@ namespace MessageShark {
             methodDeserializeIL.Emit(OpCodes.Ldloc_S, returnLocal.LocalIndex);
             methodDeserializeIL.Emit(OpCodes.Ret);
 
+
+            //DeserializeStream
+            GenerateDeserializerCallClassMethod(type, methodDeserializeStreamIL, objType, returnLocalStream.LocalIndex,
+                startIndexLocalStream.LocalIndex, useStream: true);
+
+            methodDeserializeStreamIL.Emit(OpCodes.Ldloc, returnLocalStream.LocalIndex);
+            methodDeserializeStreamIL.Emit(OpCodes.Ret);
+
             //Override interface implementation
             type.DefineMethodOverride(methodSerialize,
                 genericType.GetMethod("Serialize", new[] { objType }));
             type.DefineMethodOverride(methodDeserialize,
                 genericType.GetMethod("Deserialize", new[] { ByteArrayType }));
+            type.DefineMethodOverride(methodDeserializeStream,
+                genericType.GetMethod("Deserialize", new[] { StreamType }));
             type.DefineMethodOverride(methodSerializeStream,
                 genericType.GetMethod("Serialize", new[] { objType, StreamType }));
 
