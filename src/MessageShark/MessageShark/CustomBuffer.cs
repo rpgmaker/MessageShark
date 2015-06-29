@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -12,7 +13,12 @@ namespace MessageShark {
         private int _length;
         private static readonly int MIN_BUFFER_SIZE = 200;
         private static readonly int MIN_SIZE = 0x100;
-        
+        private Stream _stream;
+
+
+        public CustomBuffer(Stream stream) {
+            _stream = stream;
+        }
 
         public CustomBuffer() : this(MIN_BUFFER_SIZE) { }
         public CustomBuffer(int size) {
@@ -41,6 +47,12 @@ namespace MessageShark {
         }
 
         public void Write(byte[] buffer) {
+
+            if (_stream != null) {
+                _stream.Write(buffer, 0, buffer.Length);
+                return;
+            }
+
             var count = buffer.Length;
             var size = _position + count;
             if (size < 0) return;

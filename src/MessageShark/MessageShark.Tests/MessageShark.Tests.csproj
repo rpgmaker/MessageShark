@@ -51,6 +51,7 @@
     <Compile Include="NonGenericSerializationTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ConcurrencyTest.cs" />
+    <Compile Include="StreamSerializationTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MessageShark\MessageShark.csproj">

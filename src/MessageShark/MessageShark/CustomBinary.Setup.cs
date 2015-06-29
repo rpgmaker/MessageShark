@@ -61,6 +61,8 @@ namespace MessageShark
         static readonly Type BufferStreamType = typeof(CustomBuffer);
         static readonly ConstructorInfo BufferStreamCtor =
             BufferStreamType.GetConstructor(Type.EmptyTypes);
+        static readonly ConstructorInfo BufferStreamStreamCtor =
+            BufferStreamType.GetConstructor(new[] { typeof(Stream) });
 
         static volatile bool IsBuild = false;
         static readonly Label DefaultLabel = default(Label);
@@ -117,8 +119,8 @@ namespace MessageShark
         static readonly Type GenericIEnumeratorType = typeof(IEnumerator<>);
         static readonly Type EnumeratorType = typeof(IEnumerator);
         static readonly Type GenericListType = typeof(List<>);
-        static readonly Type VoidType = typeof(void);
-        public static readonly Type IntType = typeof(int);
+        internal static readonly Type VoidType = typeof(void);
+        internal static readonly Type IntType = typeof(int);
 		static readonly Type GenericIDictType = typeof(IDictionary<,>);
 		static readonly Type GenericDictType = typeof(Dictionary<,>);
 		static readonly Type GenericKeyValuePairType = typeof(KeyValuePair<,>);
@@ -126,6 +128,7 @@ namespace MessageShark
 		static readonly Type DateTimeType = typeof(DateTime);
 		static readonly Type DecimalType = typeof(Decimal);
 		static readonly Type GuidType = typeof(Guid);
+        internal static readonly Type StreamType = typeof(Stream);
         static readonly Type GenericDictionaryEnumerator =
             Type.GetType("System.Collections.Generic.Dictionary`2+Enumerator");
         static readonly Type GenericListEnumerator =

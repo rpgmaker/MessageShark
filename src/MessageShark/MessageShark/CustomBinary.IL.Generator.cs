@@ -136,8 +136,7 @@ namespace MessageShark {
             var genericType = SerializerType.MakeGenericType(objType);
             var newTypeName = objType.Name + "Serializer";
             var assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(
-                new AssemblyName(newTypeName + "Class")
-                {
+                new AssemblyName(newTypeName + "Class") {
                     Version = new Version(1, 0, 0, 0)
                 }, AssemblyBuilderAccess.RunAndSave);
             var module = assembly.DefineDynamicModule(newTypeName + ".dll");
@@ -147,17 +146,22 @@ namespace MessageShark {
                 typeof(Object), new[] { genericType });
 
 
-            
+
             var methodSerialize = type.DefineMethod("ISerializer.Serialize", MethodAttribute,
                 ByteArrayType, new[] { objType });
 
             var methodDeserialize = type.DefineMethod("ISerializer.Deserialize", MethodAttribute,
                 objType, new[] { ByteArrayType });
 
+            var methodSerializeStream = type.DefineMethod("ISerializer.Serialize", MethodAttribute,
+                VoidType, new[] { objType, StreamType });
+
             var methodSerializeIL = methodSerialize.GetILGenerator();
             var methodDeserializeIL = methodDeserialize.GetILGenerator();
+            var methodSerializeStreamIL = methodSerializeStream.GetILGenerator();
 
             var bufferLocal = methodSerializeIL.DeclareLocal(BufferStreamType);
+            var bufferStreamLocal = methodSerializeStreamIL.DeclareLocal(BufferStreamType);
 
             var returnLocal = methodDeserializeIL.DeclareLocal(objType);
             var startIndexLocal = methodDeserializeIL.DeclareLocal(typeof(int));
@@ -169,15 +173,26 @@ namespace MessageShark {
             methodSerializeIL.Emit(OpCodes.Stloc, bufferLocal.LocalIndex);
 
             GenerateSerializerCallClassMethod(type, methodSerializeIL, objType, bufferLocal.LocalIndex);
-            
+
             methodSerializeIL.Emit(OpCodes.Ldloc, bufferLocal.LocalIndex);
             methodSerializeIL.Emit(OpCodes.Callvirt, BufferStreamToArrayMethod);
             methodSerializeIL.Emit(OpCodes.Ret);
 
+
+            //SerializeStream
+            methodSerializeStreamIL.Emit(OpCodes.Ldarg_2);
+            methodSerializeStreamIL.Emit(OpCodes.Newobj, BufferStreamStreamCtor);
+            methodSerializeStreamIL.Emit(OpCodes.Stloc, bufferStreamLocal.LocalIndex);
+
+            GenerateSerializerCallClassMethod(type, methodSerializeStreamIL, objType, bufferStreamLocal.LocalIndex);
+
+
+            methodSerializeStreamIL.Emit(OpCodes.Ret);
+
             //Deserialize
             GenerateDeserializerCallClassMethod(type, methodDeserializeIL, objType, returnLocal.LocalIndex,
                 startIndexLocal.LocalIndex);
-            
+
             methodDeserializeIL.Emit(OpCodes.Ldloc_S, returnLocal.LocalIndex);
             methodDeserializeIL.Emit(OpCodes.Ret);
 
@@ -186,11 +201,14 @@ namespace MessageShark {
                 genericType.GetMethod("Serialize", new[] { objType }));
             type.DefineMethodOverride(methodDeserialize,
                 genericType.GetMethod("Deserialize", new[] { ByteArrayType }));
-
+            type.DefineMethodOverride(methodSerializeStream,
+                genericType.GetMethod("Serialize", new[] { objType, StreamType }));
 
             returnType = type.CreateType();
             CachedType[objType] = returnType;
-            //assembly.Save(newTypeName + ".dll");
+
+            if (MessageSharkSerializer.GenerateAssembly)
+                assembly.Save(newTypeName + ".dll");
             return returnType;
         }
     }
