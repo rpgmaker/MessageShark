@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Reflection.Emit;
 
 namespace MessageShark {
     public static class MessageSharkSerializer {
@@ -35,6 +38,82 @@ namespace MessageShark {
             }
             CustomBinary.GetSerializer<T>();
         }
+
+
+        public delegate object DeserializeWithTypeDelegate(byte[] value, int _);
+        public delegate byte[] SerializeWithTypeDelegate(object value);
+
+        static ConcurrentDictionary<string, DeserializeWithTypeDelegate> _deserializeWithTypes =
+            new ConcurrentDictionary<string, DeserializeWithTypeDelegate>();
+
+        static ConcurrentDictionary<Type, SerializeWithTypeDelegate> _serializeWithTypes =
+            new ConcurrentDictionary<Type, SerializeWithTypeDelegate>();
+
+        static Type _messageSharkSerializerType = typeof(ISerializer<>);
+        static Type _customBinaryType = typeof(CustomBinary);
+        static MethodInfo _getSerializerMethod = _customBinaryType.GetMethod("GetSerializer", BindingFlags.NonPublic | BindingFlags.Static);
+        static readonly string SerializeStr = "Serialize", DeserializeStr = "Deserialize";
+
+        public static byte[] Serialize(Type type, object value) {
+            return _serializeWithTypes.GetOrAdd(type, _ => { 
+                var name = String.Concat(SerializeStr, type.FullName);
+                var method = new DynamicMethod(name, CustomBinary.ByteArrayType, new[] { CustomBinary.ObjectType }, restrictedSkipVisibility: true);
+
+                var il = method.GetILGenerator();
+                var genericMethod = _getSerializerMethod.MakeGenericMethod(type);
+                var genericType = _messageSharkSerializerType.MakeGenericType(type);
+
+                var genericSerialize = genericType.GetMethod(SerializeStr, new[] { type });
+
+                il.Emit(OpCodes.Call, genericMethod);
+
+                il.Emit(OpCodes.Ldarg_0);
+                if (type.IsClass)
+                    il.Emit(OpCodes.Isinst, type);
+                else il.Emit(OpCodes.Unbox_Any, type);
+
+                il.Emit(OpCodes.Callvirt, genericSerialize);
+
+                il.Emit(OpCodes.Ret);
+
+                return method.CreateDelegate(typeof(SerializeWithTypeDelegate)) as SerializeWithTypeDelegate;
+            })(value);
+        }
+
+        public static byte[] Serialize(object value) {
+            return Serialize(value.GetType(), value);
+        }
+
+        public static object Deserialize(Type type, byte[] value) {
+            return _deserializeWithTypes.GetOrAdd(type.FullName, _ => {
+
+                var name = String.Concat(DeserializeStr, type.FullName);
+                var method = new DynamicMethod(name, CustomBinary.ObjectType, new[] { CustomBinary.ByteArrayType, CustomBinary.IntType }, restrictedSkipVisibility: true);
+
+                var il = method.GetILGenerator();
+                var genericMethod = _getSerializerMethod.MakeGenericMethod(type);
+                var genericType = _messageSharkSerializerType.MakeGenericType(type);
+
+                var genericDeserialize = genericType.GetMethod(DeserializeStr, new[] { CustomBinary.ByteArrayType });
+
+                il.Emit(OpCodes.Call, genericMethod);
+
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Callvirt, genericDeserialize);
+
+                if (type.IsClass)
+                    il.Emit(OpCodes.Isinst, type);
+                else {
+                    il.Emit(OpCodes.Box, type);
+                }
+
+                il.Emit(OpCodes.Ret);
+
+                return method.CreateDelegate(typeof(DeserializeWithTypeDelegate)) as DeserializeWithTypeDelegate;
+            })(value, 0);
+        }
+
+
 
         /// <summary>
         /// Deserialize buffer into T type

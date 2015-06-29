@@ -64,12 +64,12 @@ namespace MessageShark
 
         static volatile bool IsBuild = false;
         static readonly Label DefaultLabel = default(Label);
-        static readonly Type ObjectType = typeof(object);
+        internal static readonly Type ObjectType = typeof(object);
         static readonly Type TypeType = typeof(Type);
         static readonly Type EnumType = typeof(Enum);
         static readonly Type CustomBinaryType = typeof(CustomBinary);
         static readonly Type IgnoreAttribute = typeof(MessageSharkIgnoreAttribute);
-		static readonly Type ByteArrayType = typeof(byte[]);
+		internal static readonly Type ByteArrayType = typeof(byte[]);
 		static readonly Type SerializerType = typeof(ISerializer<>);
 		static MethodInfo BufferStreamToArrayMethod =
 			BufferStreamType.GetMethod("ToArray");
@@ -118,6 +118,7 @@ namespace MessageShark
         static readonly Type EnumeratorType = typeof(IEnumerator);
         static readonly Type GenericListType = typeof(List<>);
         static readonly Type VoidType = typeof(void);
+        public static readonly Type IntType = typeof(int);
 		static readonly Type GenericIDictType = typeof(IDictionary<,>);
 		static readonly Type GenericDictType = typeof(Dictionary<,>);
 		static readonly Type GenericKeyValuePairType = typeof(KeyValuePair<,>);
